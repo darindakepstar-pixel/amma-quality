@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AMMA · Качество поставщиков</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f6f5f2;--card:#fff;--ink:#1f2421;--muted:#6b716d;--line:#e3e1dc;
+  --brand:#2f6b4f;--brand-soft:#e4efe8;--warn:#b7791f;--warn-soft:#fbf1dc;
+  --bad:#b23a3a;--bad-soft:#f8e3e1;--good:#2f6b4f;--good-soft:#e4efe8;--gray-soft:#eeeceb;
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.hwrap{max-width:1400px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.logo{font-weight:700;font-size:16px;color:var(--brand);white-space:nowrap}
+.logo small{color:var(--muted);font-weight:500;margin-left:6px}
+nav{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+nav button{border:0;background:none;padding:7px 12px;border-radius:8px;cursor:pointer;color:var(--muted);font:inherit;font-weight:500}
+nav button.on{background:var(--brand-soft);color:var(--brand)}
+nav button:hover{color:var(--ink)}
+.hright{display:flex;gap:8px;align-items:center}
+main{max-width:1400px;margin:0 auto;padding:16px}
+.banner{background:var(--warn-soft);color:#7a5412;padding:8px 16px;text-align:center;font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.card h2{margin:0 0 12px;font-size:16px}
+.card h3{margin:16px 0 8px;font-size:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row>label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+input,select,textarea{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);min-width:0}
+textarea{width:100%;min-height:60px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+.btn{border:1px solid var(--line);background:#fff;padding:7px 13px;border-radius:8px;cursor:pointer;font:inherit;font-weight:500;color:var(--ink);white-space:nowrap}
+.btn:hover{border-color:#c9c6bf}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.pri:hover{background:#275a42}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:4px 9px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:default}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:#fff}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{background:#faf9f7;font-weight:600;color:var(--muted);font-size:12px;position:sticky;top:0;cursor:default}
+th.sort{cursor:pointer}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#fafaf8}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tfoot td{font-weight:600;background:#faf9f7}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600}
+.b-good{background:var(--good-soft);color:var(--good)}
+.b-warn{background:var(--warn-soft);color:var(--warn)}
+.b-bad{background:var(--bad-soft);color:var(--bad)}
+.b-gray{background:var(--gray-soft);color:var(--muted)}
+.muted{color:var(--muted)}
+.stars{color:#d4a017;letter-spacing:1px}
+.stars .off{color:#ddd}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.kpi .v{font-size:20px;font-weight:700}
+.kpi .l{font-size:12px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.seg button{border:0;background:none;padding:6px 11px;cursor:pointer;font:inherit;color:var(--muted)}
+.seg button.on{background:var(--brand);color:#fff}
+.modal-bg{position:fixed;inset:0;background:rgba(20,25,22,.45);display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;z-index:50;overflow-y:auto}
+.modal{background:#fff;border-radius:12px;max-width:820px;width:100%;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal h2{margin:0 0 14px;font-size:17px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.qrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.qbtns{display:flex;gap:4px}
+.qbtns button{width:32px;height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;font:inherit;font-weight:600}
+.qbtns button.on1{background:#f3d3cf;border-color:#e0a9a2}
+.qbtns button.on2{background:#f7e0c8;border-color:#e8bd8f}
+.qbtns button.on3{background:#f6efc6;border-color:#e2d27f}
+.qbtns button.on4{background:#dcebd9;border-color:#a8cda1}
+.qbtns button.on5{background:#c7e3cf;border-color:#7fbf92}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:#fff;padding:4px 10px;border-radius:99px;cursor:pointer;font-size:12px}
+.chip.on{background:var(--bad-soft);border-color:#e0a9a2;color:var(--bad)}
+.photos{display:flex;gap:8px;flex-wrap:wrap}
+.ph{position:relative;width:90px;height:90px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#f2f2f2}
+.ph img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+.ph button{position:absolute;top:3px;right:3px;border:0;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;line-height:1}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.mfoot .sp{flex:1}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1f2421;color:#fff;padding:10px 18px;border-radius:8px;z-index:100;font-size:13px;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.login{max-width:360px;margin:80px auto}
+.login input{width:100%;margin-bottom:10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:800px){.two{grid-template-columns:1fr}}
+.bar{height:6px;border-radius:3px;background:var(--gray-soft);overflow:hidden;width:70px;display:inline-block;vertical-align:middle;margin-left:6px}
+.bar i{display:block;height:100%}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.err td{background:var(--bad-soft)!important}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:200;cursor:zoom-out}
+.lightbox img{max-width:95vw;max-height:95vh}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* =====================================================================
+   НАСТРОЙКА: вставьте сюда данные вашего проекта Supabase
+   (Project Settings → API). Демо-режим без базы: добавьте ?demo
+   в конец адреса страницы — данные будут только в этом браузере.
+   ===================================================================== */
+const SUPABASE_URL = 'https://pfixjbntcijetvjwlvhe.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmaXhqYm50Y2lqZXR2andsdmhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MDk4MjYsImV4cCI6MjA5NjQ4NTgyNn0.VH5zClAUq_RxZ4vngLxaMryUP7J0bNzStMqIuHe7SnQ';
+const PHOTO_BUCKET = 'qa-photos';
+const STAFF_ROLES = ['manager','warehouse','admin'];
+const AMMA_LOGIN_DOMAIN = 'amma.local';   // как в системе заказов: логин без «@» → login@amma.local
+
+/* ---------------- утилиты ---------------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now() + Math.random().toString(16).slice(2));
+const MEM = {};
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return MEM[k]??null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){MEM[k]=v}}
+const today = () => new Date().toISOString().slice(0,10);
+const num = v => { if (v === null || v === undefined || v === '') return null; if (typeof v === 'number') return isFinite(v) ? v : null;
+  const s = String(v).replace(/[¥￥$₽\s]/g,'').replace(/,(?=\d{3}(\D|$))/g,'').replace(',', '.'); const n = parseFloat(s); return isFinite(n) ? n : null; };
+const fmt = (v, d = 2) => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('ru-RU', {maximumFractionDigits: d});
+const money = v => v == null ? '—' : '¥' + fmt(v, 2);
+const pct = v => v == null ? '—' : fmt(v, 1) + '%';
+function toast(msg){const d=document.createElement('div');d.className='toast';d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2800)}
+const monthKey = d => (d||'').slice(0,7);
+
+/* ---------------- язык ---------------- */
+let LANG = lsGet('qa_lang') || 'ru';
+const I = {
+ app:['Качество поставщиков','供应商质量'],
+ items:['Закупки','采购记录'], imp:['Импорт','导入'], ship:['Отгрузки','发货批次'], sup:['Поставщики','供应商'], sum:['Сводка','汇总分析'], set:['Настройки','设置'],
+ demo:['Демо-режим: данные хранятся только в этом браузере. Подключите Supabase в index.html, чтобы работать всей командой.','演示模式：数据仅保存在本浏览器。请在 index.html 中配置 Supabase 以供团队使用。'],
+ logout:['Выйти','退出'], login:['Войти','登录'], email:['Эл. почта','邮箱'], password:['Пароль','密码'],
+ date:['Дата','日期'], supplier:['Поставщик','供应商'], invoice:['Накладная №','单号'], flower:['Цветок','花材'], variety:['Сорт','品种'], grade:['Класс / длина','等级/长度'],
+ qty:['Кол-во','数量'], unit:['Ед.','单位'], price:['Цена','单价'], amount:['Сумма','金额'], rating:['Оценка','评分'], claim:['Претензия','索赔'], shipment:['Отгрузка','发货批次'],
+ add:['+ Добавить вручную','+ 手动添加'], save:['Сохранить','保存'], saveMore:['Сохранить и ещё','保存并继续'], cancel:['Отмена','取消'], del:['Удалить','删除'], edit:['Изменить','编辑'],
+ all:['Все','全部'], none:['— нет —','— 无 —'], search:['Поиск по цветку / сорту','搜索花材/品种'], onlyClaims:['Только с претензией','仅索赔'], onlyUnchecked:['Не оценённые','未评分'],
+ from:['С','从'], to:['По','至'], period:['Период','期间'],
+ thisMonth:['Этот месяц','本月'], lastMonth:['Прошлый месяц','上月'], thisYear:['Этот год','今年'], lastYear:['Прошлый год','去年'], allTime:['Всё время','全部'], custom:['Свой','自定义'],
+ quality:['Качество','质量'], overall:['Общая оценка','总评分'], auto:['авто','自动'],
+ q_fresh:['Свежесть','新鲜度'], q_stem:['Стебель (длина, прочность)','花茎（长度/硬度）'], q_bud:['Бутон / головка','花头'], q_pack:['Упаковка','包装'], q_variety:['Соответствие сорту','品种相符'],
+ hasClaim:['Есть претензия','有索赔'], reasons:['Причины','原因'], claimQty:['Брак, шт','次品数量'], claimAmt:['Сумма претензии, ¥','索赔金额 ¥'], status:['Статус','状态'], note:['Комментарий','备注'],
+ st_open:['Открыта','待处理'], st_comp:['Компенсировано','已赔偿'], st_rej:['Отклонена поставщиком','供应商拒绝'],
+ photos:['Фото брака','次品照片'], addPhoto:['+ Фото','+ 照片'],
+ newItem:['Новая позиция','新增记录'], editItem:['Позиция закупки','采购记录'],
+ newSupplier:['+ Новый поставщик','+ 新供应商'], name:['Название','名称'], nameZh:['Название (中文)','中文名称'], type:['Тип','类型'], farm:['Земля','基地'], reseller:['Перекуп','二级批发'],
+ contact:['Контакт','联系方式'], notes:['Заметки','备注'], active:['Активен','启用'],
+ newShipment:['+ Новая отгрузка','+ 新批次'], number:['Номер','编号'], destination:['Направление / клиент','目的地/客户'],
+ byS:['По поставщикам','按供应商'], bySh:['По отгрузкам','按批次'], byM:['По месяцам','按月'], byF:['По цветам','按花材'],
+ positions:['Позиций','条数'], deliveries:['Поставок','供货次数'], checked:['Оценено','已评'], avgRating:['Ср. оценка','平均分'], defect:['Брак','次品率'],
+ claimsN:['Претензий','索赔数'], claimSum:['Сумма претензий','索赔金额'], index:['Индекс','指数'], verdict:['Решение','结论'],
+ v_contract:['Контракт','长期合作'], v_watch:['Наблюдать','观察'], v_drop:['Отказаться','淘汰'], v_few:['Мало данных','数据不足'], v_none:['Нет оценок','无评分'],
+ exportX:['Экспорт в Excel','导出 Excel'], suppliersN:['Поставщиков','供应商数'], month:['Месяц','月份'], bestSup:['Лучший поставщик','最佳供应商'], avgPrice:['Ср. цена','平均价'],
+ imp_title:['Импорт накладных из Excel / CSV','从 Excel / CSV 导入'], imp_file:['Выберите файл','选择文件'], template:['Скачать шаблон','下载模板'],
+ sheet:['Лист','工作表'], headerRow:['Строка заголовков','表头行'], mapping:['Сопоставление колонок','列对应'], notUsed:['— не использовать —','— 不使用 —'],
+ defaults:['Значения по умолчанию (если нет колонки)','默认值（无对应列时）'], preview:['Предпросмотр','预览'], doImport:['Импортировать','导入'],
+ newShipNum:['или новая: номер','或新建：编号'], rowsOk:['строк к импорту','行可导入'], rowsBad:['пропущено (нет цветка или кол-ва)','行跳过（缺花材或数量）'],
+ newSups:['новых поставщиков будет создано','个新供应商将被创建'],
+ thresholds:['Пороги решения','决策阈值'], thContract:['Контракт, если индекс ≥','指数 ≥ 则长期合作'], thDrop:['Отказаться, если индекс <','指数 < 则淘汰'],
+ thMin:['Минимум оценённых поставок для решения','决策所需最少已评供货次数'], thPen:['Штраф за 1% брака (баллов)','每1%次品扣分'],
+ formula:['Индекс 0–100 = 50% средняя оценка + 30% доля брака + 20% частота претензий. Считается только по оценённым позициям.','指数0–100 = 50%平均分 + 30%次品率 + 20%索赔频率，仅计算已评分记录。'],
+ lang:['Язык','语言'], data:['Данные','数据'], exportAll:['Выгрузить все закупки в Excel','导出全部采购记录'], backup:['Резервная копия (JSON)','备份 (JSON)'], restore:['Восстановить из JSON','从 JSON 恢复'],
+ demoData:['Заполнить демо-данными','填充演示数据'], clearAll:['Очистить всё','清空全部'],
+ saved:['Сохранено','已保存'], deleted:['Удалено','已删除'], confirmDel:['Удалить?','确定删除？'], imported:['Импортировано строк:','已导入行数：'],
+ cantDelSup:['У поставщика есть закупки — удалить нельзя. Снимите галочку «Активен».','该供应商有采购记录，无法删除。可取消“启用”。'],
+ detail:['Подробно','详情'], topReasons:['Частые причины претензий','常见索赔原因'], flowersOf:['Что берём у поставщика','采购的花材'], trend:['Динамика по месяцам','月度趋势'],
+ open:['Открыть закупки','查看采购'], shown:['Показано','显示'], of:['из','/'], total:['Итого','合计'], back:['← Назад','← 返回'],
+ loading:['Загрузка…','加载中…'],
+ shipFromAmma:['Отгрузки берутся из системы заказов AMMA','发货批次来自 AMMA 订单系统'], login2:['Логин или email','账号或邮箱'],
+ noAccess:['Нет доступа: трекер открыт только сотрудникам (менеджер, склад).','无权限：仅限员工（经理、仓库）使用。'],
+ loadErr:['Ошибка загрузки','加载错误'], loadHint:['Проверьте, что в Supabase выполнен schema-amma.sql.','请确认已在 Supabase 执行 schema-amma.sql。'], noData:['Нет данных за период','该期间无数据'], required:['Заполните поставщика, дату, цветок и количество','请填写供应商、日期、花材和数量'],
+};
+const t = k => (I[k] || [k,k])[LANG === 'zh' ? 1 : 0];
+const PARAMS = ['q_fresh','q_stem','q_bud','q_pack','q_variety'];
+const REASONS = {wilt:['Вялость','萎蔫'],botrytis:['Ботритис / гниль','灰霉/腐烂'],broken:['Поломка','折断'],short:['Недовложение','短缺'],wrong:['Пересорт','错品种'],small:['Мелкий бутон','花头小'],stem:['Короткий / слабый стебель','花茎短/弱'],pack:['Плохая упаковка','包装差'],pest:['Вредители','虫害'],other:['Другое','其他']};
+const rs = k => (REASONS[k]||[k,k])[LANG==='zh'?1:0];
+
+/* ---------------- слой данных ---------------- */
+const LOCAL = !SUPABASE_URL || !SUPABASE_ANON_KEY || new URLSearchParams(location.search).has('demo');
+const sb = LOCAL ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const TABLES = ['suppliers','shipments','purchase_items'];
+const S = {suppliers:[], shipments:[], purchase_items:[]};
+
+/* В базе AMMA: поставщики и отгрузки — общие таблицы системы заказов, закупки — qa_items */
+const sid = v => v == null || v === '' ? null : String(v);
+const pick = (o, m) => { const r = {}; for (const [a,b] of Object.entries(m)) if (o[a] !== undefined) r[b] = o[a]; return r; };
+const MAP = {
+  suppliers: { table:'suppliers',
+    from: r => ({id:sid(r.id), name:r.name_ru || r.name_cn || '', name_zh:r.name_cn, contact:r.phone, active:r.active !== false, type:r.qa_type || 'farm', notes:r.qa_notes}),
+    to: r => pick(r, {name:'name_ru', name_zh:'name_cn', contact:'phone', active:'active', type:'qa_type', notes:'qa_notes'}) },
+  shipments: { table:'shipments',
+    from: r => ({id:sid(r.id), number:r.ship_number || ('#'+r.id), ship_date:r.ship_date, destination:r.direction, notes:r.note}),
+    to: r => pick(r, {number:'ship_number', ship_date:'ship_date', destination:'direction', notes:'note'}) },
+  purchase_items: { table:'qa_items',
+    from: r => ({...r, id:sid(r.id), supplier_id:sid(r.supplier_id), shipment_id:sid(r.shipment_id)}),
+    to: r => { const o = {...r}; delete o.created_at; delete o.updated_at; return o; } },
+};
+const DB = {
+  loadLocal(tb){ try{return JSON.parse(lsGet('qa_'+tb)||'[]')}catch(e){return []} },
+  saveLocal(tb){ lsSet('qa_'+tb, JSON.stringify(S[tb])) },
+  async all(tb){
+    if (LOCAL) return DB.loadLocal(tb);
+    let out = [], from = 0;
+    for(;;){ const {data, error} = await sb.from(MAP[tb].table).select('*').range(from, from+999); if (error) throw error;
+      out = out.concat(data); if (data.length < 1000) break; from += 1000; }
+    return out.map(MAP[tb].from);
+  },
+  async insert(tb, rows){
+    if (LOCAL || tb === 'purchase_items') rows = rows.map(r => ({id: r.id || uid(), ...r}));
+    if (LOCAL){ const now = new Date().toISOString(); rows.forEach(r=>r.created_at=now); S[tb].push(...rows); DB.saveLocal(tb); return rows; }
+    const out = [];
+    for (let i=0;i<rows.length;i+=500){ const {data,error} = await sb.from(MAP[tb].table).insert(rows.slice(i,i+500).map(MAP[tb].to)).select(); if (error) throw error; out.push(...data.map(MAP[tb].from)); }
+    S[tb].push(...out); return out;
+  },
+  async update(tb, id, patch){
+    if (LOCAL){ const r = S[tb].find(x=>x.id===id); Object.assign(r, patch); DB.saveLocal(tb); return r; }
+    const {data,error} = await sb.from(MAP[tb].table).update(MAP[tb].to(patch)).eq('id', id).select().single(); if (error) throw error;
+    const i = S[tb].findIndex(x=>x.id===id); S[tb][i] = MAP[tb].from(data); return S[tb][i];
+  },
+  async remove(tb, id){
+    if (!LOCAL){ const {error} = await sb.from(MAP[tb].table).delete().eq('id', id); if (error) throw error; }
+    S[tb] = S[tb].filter(x=>x.id!==id); if (LOCAL) DB.saveLocal(tb);
+  },
+  async loadAll(){ for (const tb of TABLES) S[tb] = await DB.all(tb); }
+};
+
+/* фото: сжимаем в браузере до ~1280px JPEG */
+function compressImage(file, max = 1280){
+  return new Promise((res, rej) => { const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => { let {width:w, height:h} = img; const k = Math.min(1, max/Math.max(w,h)); w = Math.round(w*k); h = Math.round(h*k);
+      const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      c.toBlob(b => res(b), 'image/jpeg', 0.82); };
+    img.onerror = rej; img.src = url; });
+}
+const blobToDataURL = b => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
+const photoCache = {};
+async function photoUrl(p){
+  if (p.startsWith('data:')) return p;
+  if (photoCache[p]) return photoCache[p];
+  const {data} = await sb.storage.from(PHOTO_BUCKET).createSignedUrl(p, 3600);
+  return photoCache[p] = data?.signedUrl || '';
+}
+async function uploadPhoto(itemId, file){
+  const blob = await compressImage(file);
+  if (LOCAL) return blobToDataURL(await compressImage(file, 700));
+  const path = `${itemId}/${Date.now()}-${Math.random().toString(16).slice(2,8)}.jpg`;
+  const {error} = await sb.storage.from(PHOTO_BUCKET).upload(path, blob, {contentType:'image/jpeg'}); if (error) throw error;
+  return path;
+}
+async function removePhoto(p){ if (!LOCAL && !p.startsWith('data:')) await sb.storage.from(PHOTO_BUCKET).remove([p]); }
+
+/* ---------------- настройки решения ---------------- */
+const CFG = Object.assign({contract:80, drop:60, minDeliv:5, pen:5}, JSON.parse(lsGet('qa_cfg')||'{}'));
+const saveCfg = () => lsSet('qa_cfg', JSON.stringify(CFG));
+
+/* ---------------- расчёты ---------------- */
+const supName = id => { const s = S.suppliers.find(x=>x.id===id); return s ? (LANG==='zh' && s.name_zh ? s.name_zh : s.name) : '—'; };
+const shipName = id => { const s = S.shipments.find(x=>x.id===id); return s ? s.number : ''; };
+const amt = it => it.amount != null && it.amount !== '' ? +it.amount : (+it.qty||0) * (+it.price||0);
+function effRating(it){
+  if (it.rating != null && it.rating !== '') return +it.rating;
+  const v = PARAMS.map(p=>it[p]).filter(x=>x!=null && x!=='').map(Number);
+  return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
+}
+const isChecked = it => effRating(it) != null || !!it.has_claim;
+
+function agg(items){
+  const a = {n:items.length, qty:0, amount:0, checkedN:0, checkedQty:0, claimItems:0, claimQty:0, claimAmt:0, rw:0, rs:0, deliv:new Set(), delivChecked:new Set(), params:{}, reasons:{}};
+  PARAMS.forEach(p=>a.params[p]={s:0,n:0});
+  for (const it of items){
+    const q = +it.qty||0; a.qty += q; a.amount += amt(it);
+    const dk = it.supplier_id+'|'+it.purchase_date+'|'+(it.invoice_no||''); a.deliv.add(dk);
+    if (!isChecked(it)) continue;
+    a.checkedN++; a.checkedQty += q; a.delivChecked.add(dk);
+    const r = effRating(it); if (r != null){ const w = Math.max(q,1); a.rw += w; a.rs += r*w; }
+    PARAMS.forEach(p=>{ if (it[p]!=null && it[p]!==''){ a.params[p].s += +it[p]; a.params[p].n++; } });
+    if (it.has_claim){ a.claimItems++; a.claimQty += +it.claim_qty||0; a.claimAmt += +it.claim_amount||0; (it.claim_reasons||[]).forEach(k=>a.reasons[k]=(a.reasons[k]||0)+1); }
+  }
+  a.avgRating = a.rw ? a.rs/a.rw : null;
+  a.defectPct = a.checkedQty ? a.claimQty/a.checkedQty*100 : null;
+  a.claimRate = a.checkedN ? a.claimItems/a.checkedN*100 : null;
+  a.deliveries = a.deliv.size; a.delivCheckedN = a.delivChecked.size;
+  PARAMS.forEach(p=>a.params[p] = a.params[p].n ? a.params[p].s/a.params[p].n : null);
+  if (!a.checkedN){ a.index = null; a.verdict = 'v_none'; return a; }
+  const comps = [];
+  if (a.avgRating != null) comps.push([0.5, (a.avgRating-1)/4*100]);
+  comps.push([0.3, Math.max(0, 100 - a.defectPct*CFG.pen)]);
+  comps.push([0.2, 100 - a.claimRate]);
+  a.index = comps.reduce((s,[w,v])=>s+w*v,0) / comps.reduce((s,[w])=>s+w,0);
+  a.verdict = a.delivCheckedN < CFG.minDeliv ? 'v_few' : a.index >= CFG.contract ? 'v_contract' : a.index >= CFG.drop ? 'v_watch' : 'v_drop';
+  return a;
+}
+const verdictBadge = v => `<span class="badge ${({v_contract:'b-good',v_watch:'b-warn',v_drop:'b-bad'})[v]||'b-gray'}">${t(v)}</span>`;
+const indexCell = x => x == null ? '<span class="muted">—</span>' :
+  `${fmt(x,0)}<span class="bar"><i style="width:${Math.max(3,x)}%;background:${x>=CFG.contract?'var(--good)':x>=CFG.drop?'var(--warn)':'var(--bad)'}"></i></span>`;
+function stars(r){ if (r==null) return '<span class="muted">—</span>'; const f = Math.round(r); return `<span style="white-space:nowrap"><span class="stars">${'★'.repeat(f)}<span class="off">${'★'.repeat(5-f)}</span></span> <span class="muted">${fmt(r,1)}</span></span>`; }
+const defectCell = d => d == null ? '<span class="muted">—</span>' : `<span style="color:${d>=10?'var(--bad)':d>=4?'var(--warn)':'inherit'}">${pct(d)}</span>`;
+
+/* ---------------- период ---------------- */
+const PER = {items:{preset:'allTime',from:'',to:''}, sum:{preset:'thisYear',from:'',to:''}};
+function presetRange(p){
+  const d = new Date(), y = d.getFullYear(), m = d.getMonth(); const iso = x => x.toISOString().slice(0,10);
+  const loc = (yy,mm,dd) => new Date(Date.UTC(yy,mm,dd));
+  switch(p){
+    case 'thisMonth': return [iso(loc(y,m,1)), iso(loc(y,m+1,0))];
+    case 'lastMonth': return [iso(loc(y,m-1,1)), iso(loc(y,m,0))];
+    case 'thisYear': return [`${y}-01-01`, `${y}-12-31`];
+    case 'lastYear': return [`${y-1}-01-01`, `${y-1}-12-31`];
+    default: return ['',''];
+  }
+}
+function periodUI(key){
+  const P = PER[key];
+  const opts = ['thisMonth','lastMonth','thisYear','lastYear','allTime','custom'].map(o=>`<option value="${o}" ${P.preset===o?'selected':''}>${t(o)}</option>`).join('');
+  return `<label>${t('period')}<select data-per="${key}" data-f="preset">${opts}</select></label>
+    <label>${t('from')}<input type="date" data-per="${key}" data-f="from" value="${P.from}"></label>
+    <label>${t('to')}<input type="date" data-per="${key}" data-f="to" value="${P.to}"></label>`;
+}
+function bindPeriod(key, rerender){
+  document.querySelectorAll(`[data-per="${key}"]`).forEach(el => el.onchange = () => {
+    const P = PER[key];
+    if (el.dataset.f === 'preset'){ P.preset = el.value; if (el.value!=='custom'){ [P.from,P.to] = presetRange(el.value); } }
+    else { P[el.dataset.f] = el.value; P.preset = 'custom'; }
+    rerender();
+  });
+}
+const inPer = (it, key) => { const P = PER[key]; const d = it.purchase_date||''; return (!P.from || d >= P.from) && (!P.to || d <= P.to); };
+
+/* ---------------- каркас ---------------- */
+let TAB = 'items', USER = null;
+function shell(){
+  const tabs = ['items','imp','ship','sup','sum','set'];
+  $('#app').innerHTML = `
+    ${LOCAL?`<div class="banner">${t('demo')}</div>`:''}
+    <header><div class="hwrap">
+      <div class="logo">AMMA<small>${t('app')}</small></div>
+      <nav>${tabs.map(k=>`<button data-tab="${k}" class="${TAB===k?'on':''}">${t(k)}</button>`).join('')}</nav>
+      <div class="hright">
+        <div class="seg"><button data-lang="ru" class="${LANG==='ru'?'on':''}">RU</button><button data-lang="zh" class="${LANG==='zh'?'on':''}">中文</button></div>
+        ${!LOCAL?`<button class="btn sm" id="logout">${t('logout')}</button>`:''}
+      </div>
+    </div></header>
+    <main id="main"></main>`;
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{TAB=b.dataset.tab; shell();});
+  document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{LANG=b.dataset.lang; lsSet('qa_lang',LANG); shell();});
+  if ($('#logout')) $('#logout').onclick = async()=>{ await sb.auth.signOut(); location.reload(); };
+  ({items:renderItems, imp:renderImport, ship:renderShipments, sup:renderSuppliers, sum:renderSummary, set:renderSettings})[TAB]();
+}
+
+/* ================= ЗАКУПКИ ================= */
+const IF = {supplier:'', shipment:'', q:'', claims:false, unchecked:false};
+function renderItems(){
+  const f = IF;
+  let rows = S.purchase_items.filter(it => inPer(it,'items')
+    && (!f.supplier || it.supplier_id===f.supplier) && (!f.shipment || it.shipment_id===f.shipment)
+    && (!f.claims || it.has_claim) && (!f.unchecked || !isChecked(it))
+    && (!f.q || ((it.flower||'')+' '+(it.variety||'')).toLowerCase().includes(f.q.toLowerCase())));
+  rows.sort((a,b)=>(b.purchase_date||'').localeCompare(a.purchase_date||'') || (b.created_at||'').localeCompare(a.created_at||''));
+  const a = agg(rows); const LIM = 500;
+  $('#main').innerHTML = `
+    <div class="card"><div class="row">
+      ${periodUI('items')}
+      <label>${t('supplier')}<select id="fSup"><option value="">${t('all')}</option>${supOptions(f.supplier)}</select></label>
+      <label>${t('shipment')}<select id="fShip"><option value="">${t('all')}</option>${shipOptions(f.shipment)}</select></label>
+      <label style="flex:1;min-width:160px">${t('search')}<input id="fQ" value="${esc(f.q)}"></label>
+      <label style="flex-direction:row;align-items:center;gap:6px;color:var(--ink)"><input type="checkbox" id="fC" ${f.claims?'checked':''}>${t('onlyClaims')}</label>
+      <label style="flex-direction:row;align-items:center;gap:6px;color:var(--ink)"><input type="checkbox" id="fU" ${f.unchecked?'checked':''}>${t('onlyUnchecked')}</label>
+      <button class="btn pri" id="addItem">${t('add')}</button>
+    </div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${fmt(a.n,0)}</div><div class="l">${t('positions')} · ${t('checked')} ${fmt(a.checkedN,0)}</div></div>
+      <div class="kpi"><div class="v">${fmt(a.qty,0)}</div><div class="l">${t('qty')}</div></div>
+      <div class="kpi"><div class="v">${money(a.amount)}</div><div class="l">${t('amount')}</div></div>
+      <div class="kpi"><div class="v">${a.avgRating==null?'—':fmt(a.avgRating,2)}</div><div class="l">${t('avgRating')}</div></div>
+      <div class="kpi"><div class="v">${pct(a.defectPct)}</div><div class="l">${t('defect')}</div></div>
+      <div class="kpi"><div class="v">${money(a.claimAmt)}</div><div class="l">${t('claimSum')}</div></div>
+    </div>
+    <div class="tw">${rows.length ? `<table><thead><tr>
+      <th>${t('date')}</th><th>${t('shipment')}</th><th>${t('supplier')}</th><th>${t('invoice')}</th><th>${t('flower')}</th><th>${t('variety')}</th><th>${t('grade')}</th>
+      <th class="num">${t('qty')}</th><th class="num">${t('price')}</th><th class="num">${t('amount')}</th><th>${t('rating')}</th><th>${t('claim')}</th></tr></thead><tbody>
+      ${rows.slice(0,LIM).map(it=>`<tr class="click" data-id="${it.id}">
+        <td>${esc(it.purchase_date)}</td><td>${esc(shipName(it.shipment_id))}</td><td>${esc(supName(it.supplier_id))}</td><td>${esc(it.invoice_no)}</td>
+        <td>${esc(it.flower)}</td><td>${esc(it.variety)}</td><td>${esc(it.grade)}</td>
+        <td class="num">${fmt(it.qty,2)} <span class="muted">${esc(it.unit||'')}</span></td><td class="num">${fmt(it.price,2)}</td><td class="num">${fmt(amt(it),2)}</td>
+        <td>${stars(effRating(it))}</td>
+        <td>${it.has_claim?`<span class="badge b-bad">${fmt(it.claim_qty||0,0)} ${LANG==='zh'?'枝':'шт'}${(it.photos||[]).length?' 📷':''}</span>`:''}</td></tr>`).join('')}
+      </tbody></table>` : `<div class="empty">${t('noData')}</div>`}</div>
+    ${rows.length>LIM?`<p class="hint">${t('shown')} ${LIM} ${t('of')} ${rows.length}</p>`:''}`;
+  bindPeriod('items', renderItems);
+  $('#fSup').onchange = e=>{f.supplier=e.target.value; renderItems();};
+  $('#fShip').onchange = e=>{f.shipment=e.target.value; renderItems();};
+  $('#fQ').oninput = e=>{f.q=e.target.value; clearTimeout(renderItems._t); renderItems._t=setTimeout(()=>{renderItems(); const q=$('#fQ'); q.focus(); q.setSelectionRange(q.value.length,q.value.length);},300);};
+  $('#fC').onchange = e=>{f.claims=e.target.checked; renderItems();};
+  $('#fU').onchange = e=>{f.unchecked=e.target.checked; renderItems();};
+  $('#addItem').onclick = ()=>itemModal(null);
+  document.querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>itemModal(S.purchase_items.find(x=>x.id===tr.dataset.id)));
+}
+function supOptions(sel, onlyActive){ return [...S.suppliers].filter(s=>!onlyActive||s.active!==false||s.id===sel).sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(s=>`<option value="${s.id}" ${s.id===sel?'selected':''}>${esc(s.name)}${s.name_zh?' / '+esc(s.name_zh):''}</option>`).join(''); }
+function shipOptions(sel){ return [...S.shipments].sort((a,b)=>(b.ship_date||'').localeCompare(a.ship_date||'')).map(s=>`<option value="${s.id}" ${s.id===sel?'selected':''}>${esc(s.number)}${s.ship_date?' · '+s.ship_date:''}</option>`).join(''); }
+
+/* ---------------- модалка позиции ---------------- */
+let LAST = {};
+function modal(html){ const bg = document.createElement('div'); bg.className='modal-bg'; bg.innerHTML=`<div class="modal">${html}</div>`;
+  bg.addEventListener('mousedown', e=>{ if(e.target===bg) bg.remove(); }); document.body.appendChild(bg); return bg; }
+function lightbox(src){ const d=document.createElement('div'); d.className='lightbox'; d.innerHTML=`<img src="${src}">`; d.onclick=()=>d.remove(); document.body.appendChild(d); }
+
+function itemModal(it){
+  const isNew = !it;
+  const d = it ? JSON.parse(JSON.stringify(it)) : {id:uid(), purchase_date:LAST.purchase_date||today(), supplier_id:LAST.supplier_id||'', shipment_id:LAST.shipment_id||'', invoice_no:LAST.invoice_no||'', unit:'шт', photos:[], claim_reasons:[]};
+  d.photos = d.photos||[]; d.claim_reasons = d.claim_reasons||[];
+  const qb = (k) => `<div class="qbtns" data-q="${k}">${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" class="${+d[k]===n?'on'+n:''}">${n}</button>`).join('')}</div>`;
+  const bg = modal(`
+    <h2>${isNew?t('newItem'):t('editItem')}</h2>
+    <div class="grid">
+      <label>${t('date')} *<input type="date" id="m_date" value="${esc(d.purchase_date)}"></label>
+      <label>${t('supplier')} *<select id="m_sup"><option value=""></option>${supOptions(d.supplier_id,true)}<option value="__new">${t('newSupplier')}</option></select></label>
+      <label>${t('invoice')}<input id="m_inv" value="${esc(d.invoice_no)}"></label>
+      <label>${t('shipment')}<select id="m_ship"><option value="">${t('none')}</option>${shipOptions(d.shipment_id)}</select></label>
+      <label>${t('flower')} *<input id="m_fl" list="flList" value="${esc(d.flower)}"></label>
+      <label>${t('variety')}<input id="m_var" list="varList" value="${esc(d.variety)}"></label>
+      <label>${t('grade')}<input id="m_gr" value="${esc(d.grade)}"></label>
+      <label>${t('qty')} *<input id="m_qty" inputmode="decimal" value="${d.qty??''}"></label>
+      <label>${t('unit')}<input id="m_unit" value="${esc(d.unit)}"></label>
+      <label>${t('price')}, ¥<input id="m_price" inputmode="decimal" value="${d.price??''}"></label>
+      <label>${t('amount')}, ¥<input id="m_amt" inputmode="decimal" value="${d.amount??''}" placeholder="${t('auto')}"></label>
+    </div>
+    <datalist id="flList">${[...new Set(S.purchase_items.map(x=>x.flower).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+    <datalist id="varList">${[...new Set(S.purchase_items.map(x=>x.variety).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>
+    <h3>${t('quality')}</h3>
+    ${PARAMS.map(p=>`<div class="qrow"><span>${t(p)}</span>${qb(p)}</div>`).join('')}
+    <div class="qrow"><b>${t('overall')} <span class="muted" id="m_autoR"></span></b>${qb('rating')}</div>
+    <h3><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="m_claim" ${d.has_claim?'checked':''}> ${t('hasClaim')}</label></h3>
+    <div id="m_claimBox" style="${d.has_claim?'':'display:none'}">
+      <div class="chips" id="m_reasons">${Object.keys(REASONS).map(k=>`<span class="chip ${d.claim_reasons.includes(k)?'on':''}" data-k="${k}">${rs(k)}</span>`).join('')}</div>
+      <div class="grid" style="margin-top:10px">
+        <label>${t('claimQty')}<input id="m_cq" inputmode="decimal" value="${d.claim_qty??''}"></label>
+        <label>${t('claimAmt')}<input id="m_ca" inputmode="decimal" value="${d.claim_amount??''}"></label>
+        <label>${t('status')}<select id="m_cs">${['open','comp','rej'].map(s=>`<option value="${s}" ${d.claim_status===s?'selected':''}>${t('st_'+s)}</option>`).join('')}</select></label>
+      </div>
+      <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">${t('note')}<textarea id="m_cn">${esc(d.claim_note)}</textarea></label>
+      <h3>${t('photos')}</h3>
+      <div class="photos" id="m_photos"></div>
+      <label class="btn sm" style="margin-top:8px;display:inline-block">${t('addPhoto')}<input type="file" id="m_file" accept="image/*" multiple hidden></label>
+    </div>
+    <div class="mfoot">
+      ${!isNew?`<button class="btn danger" id="m_del">${t('del')}</button>`:''}<span class="sp"></span>
+      <button class="btn" id="m_cancel">${t('cancel')}</button>
+      ${isNew?`<button class="btn" id="m_more">${t('saveMore')}</button>`:''}
+      <button class="btn pri" id="m_save">${t('save')}</button>
+    </div>`);
+  const m = bg.querySelector('.modal');
+  const updAuto = () => { const r = effRating({...d, rating:null}); m.querySelector('#m_autoR').textContent = d.rating==null && r!=null ? `(${t('auto')}: ${fmt(r,1)})` : ''; };
+  m.querySelectorAll('.qbtns').forEach(g=>g.onclick=e=>{ const b=e.target.closest('button'); if(!b) return; const k=g.dataset.q, n=+b.dataset.n;
+    d[k] = +d[k]===n ? null : n; g.querySelectorAll('button').forEach(x=>x.className = +d[k]===+x.dataset.n ? 'on'+x.dataset.n : ''); updAuto(); });
+  updAuto();
+  m.querySelector('#m_claim').onchange = e => { d.has_claim = e.target.checked; m.querySelector('#m_claimBox').style.display = d.has_claim?'':'none'; };
+  m.querySelector('#m_reasons').onclick = e => { const c = e.target.closest('.chip'); if(!c) return; const k=c.dataset.k;
+    d.claim_reasons = d.claim_reasons.includes(k) ? d.claim_reasons.filter(x=>x!==k) : [...d.claim_reasons,k]; c.classList.toggle('on'); };
+  m.querySelector('#m_sup').onchange = async e => { if (e.target.value!=='__new') return; const s = await supplierModal(null); 
+    e.target.innerHTML = `<option value=""></option>${supOptions(s?.id,true)}<option value="__new">${t('newSupplier')}</option>`; };
+  const drawPhotos = async () => { const box = m.querySelector('#m_photos'); box.innerHTML = '';
+    for (const p of d.photos){ const el = document.createElement('div'); el.className='ph'; el.innerHTML=`<img alt=""><button type="button">×</button>`; box.appendChild(el);
+      photoUrl(p).then(u=>{ el.querySelector('img').src=u; el.querySelector('img').onclick=()=>lightbox(u); });
+      el.querySelector('button').onclick = async()=>{ if(!confirm(t('confirmDel'))) return; await removePhoto(p).catch(()=>{}); d.photos = d.photos.filter(x=>x!==p); drawPhotos(); }; } };
+  drawPhotos();
+  m.querySelector('#m_file').onchange = async e => { for (const f of e.target.files){ try{ d.photos.push(await uploadPhoto(d.id, f)); }catch(err){ alert(err.message); } } e.target.value=''; drawPhotos(); };
+  m.querySelector('#m_cancel').onclick = () => bg.remove();
+  if (!isNew) m.querySelector('#m_del').onclick = async () => { if(!confirm(t('confirmDel'))) return;
+    for (const p of d.photos) await removePhoto(p).catch(()=>{}); await DB.remove('purchase_items', d.id); bg.remove(); toast(t('deleted')); shell(); };
+  const collect = () => {
+    const v = id => m.querySelector(id).value.trim();
+    const row = { purchase_date:v('#m_date'), supplier_id:v('#m_sup'), invoice_no:v('#m_inv')||null, shipment_id:v('#m_ship')||null,
+      flower:v('#m_fl'), variety:v('#m_var')||null, grade:v('#m_gr')||null, qty:num(v('#m_qty')), unit:v('#m_unit')||null, price:num(v('#m_price')), amount:num(v('#m_amt')),
+      rating:d.rating??null, has_claim:!!d.has_claim, claim_reasons:d.has_claim?d.claim_reasons:[], claim_qty:d.has_claim?num(v('#m_cq')):null,
+      claim_amount:d.has_claim?num(v('#m_ca')):null, claim_status:d.has_claim?v('#m_cs'):null, claim_note:d.has_claim?(v('#m_cn')||null):null, photos:d.photos };
+    PARAMS.forEach(p=>row[p]=d[p]??null);
+    if (row.amount==null && row.qty!=null && row.price!=null) row.amount = Math.round(row.qty*row.price*100)/100;
+    if (row.price==null && row.amount!=null && row.qty) row.price = Math.round(row.amount/row.qty*10000)/10000;
+    if (!row.purchase_date || !row.supplier_id || row.supplier_id==='__new' || !row.flower || row.qty==null){ alert(t('required')); return null; }
+    return row;
+  };
+  const save = async (more) => { const row = collect(); if (!row) return;
+    try{
+      if (isNew) await DB.insert('purchase_items', [{id:d.id, ...row}]); else await DB.update('purchase_items', d.id, row);
+      LAST = {purchase_date:row.purchase_date, supplier_id:row.supplier_id, shipment_id:row.shipment_id, invoice_no:row.invoice_no};
+      bg.remove(); toast(t('saved')); shell(); if (more) itemModal(null);
+    }catch(err){ alert(err.message); } };
+  m.querySelector('#m_save').onclick = () => save(false);
+  if (isNew) m.querySelector('#m_more').onclick = () => save(true);
+}
+
+/* ================= ИМПОРТ ================= */
+const FIELDS = [
+  ['purchase_date','date',['дата','date','日期','采购日期']],
+  ['supplier','supplier',['поставщик','продавец','ферма','supplier','供应商','基地','供货商','卖家']],
+  ['invoice_no','invoice',['накладн','№','номер','invoice','单号','单据','编号']],
+  ['flower','flower',['цвет','наимен','товар','продукт','flower','product','品名','名称','产品','花材','商品']],
+  ['variety','variety',['сорт','variety','品种','颜色']],
+  ['grade','grade',['класс','длин','размер','grade','length','等级','规格','长度']],
+  ['qty','qty',['кол','шт','qty','quantity','数量','枝数','支数']],
+  ['unit','unit',['ед','unit','单位']],
+  ['price','price',['цена','price','单价','价格']],
+  ['amount','amount',['сумм','итог','amount','total','金额','总价','合计']],
+];
+let IMP = null;
+function renderImport(){
+  $('#main').innerHTML = `<div class="card"><h2>${t('imp_title')}</h2>
+    <div class="row"><label>${t('imp_file')}<input type="file" id="impFile" accept=".xlsx,.xls,.csv"></label>
+    <button class="btn" id="tpl">${t('template')}</button></div>
+    <p class="hint">${LANG==='zh'?'支持任意列顺序：导入后可手动指定每列对应的字段。':'Колонки могут быть в любом порядке и на любом языке — после загрузки их можно сопоставить вручную.'}</p></div>
+    <div id="impBody"></div>`;
+  $('#tpl').onclick = () => { const ws = XLSX.utils.aoa_to_sheet([['Дата','Поставщик','Накладная №','Цветок','Сорт','Класс/длина','Кол-во','Ед.','Цена','Сумма'],[today(),'Пример ферма','A-001','Роза','Explorer','60 см',200,'шт',1.8,360]]);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Закупка'); XLSX.writeFile(wb, 'shablon_zakupka.xlsx'); };
+  $('#impFile').onchange = async e => { const f = e.target.files[0]; if (!f) return;
+    const wb = XLSX.read(await f.arrayBuffer(), {type:'array', cellDates:true});
+    IMP = {wb, sheet: wb.SheetNames[0], map:{}, def:{date:today(), supplier:'', invoice:'', shipment:'', newShip:''}};
+    loadSheet(); drawImport(); };
+  if (IMP) drawImport();
+}
+function loadSheet(){
+  const ws = IMP.wb.Sheets[IMP.sheet];
+  IMP.aoa = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
+  let hr = 0;
+  for (let i=0;i<Math.min(20,IMP.aoa.length);i++){ const r = IMP.aoa[i]; const txt = r.filter(c=>typeof c==='string' && c.trim()).length;
+    const hits = r.filter(c=>typeof c==='string' && FIELDS.some(([,,syn])=>syn.some(s=>c.toLowerCase().includes(s)))).length;
+    if (txt>=3 && hits>=2){ hr=i; break; } }
+  IMP.hr = hr; guessMap();
+}
+function guessMap(){
+  const hdr = (IMP.aoa[IMP.hr]||[]).map(c=>String(c).toLowerCase().trim()); IMP.map = {}; const used = new Set();
+  for (const [k,,syn] of FIELDS){ const i = hdr.findIndex((h,idx)=>!used.has(idx) && h && syn.some(s=>h.includes(s))); if (i>=0){ IMP.map[k]=i; used.add(i); } }
+}
+function parseDate(v){
+  if (v instanceof Date && !isNaN(v)) { const d = new Date(v.getTime() - v.getTimezoneOffset()*60000); return d.toISOString().slice(0,10); }
+  if (typeof v === 'number' && v > 20000 && v < 80000){ const d = new Date(Math.round((v-25569)*86400000)); return d.toISOString().slice(0,10); }
+  const s = String(v||'').trim(); let m;
+  if ((m = s.match(/^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/))) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  if ((m = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/))) { const y = m[3].length===2?'20'+m[3]:m[3]; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+  return null;
+}
+function findSupplier(name){ const n = name.trim().toLowerCase(); return S.suppliers.find(s=>s.name.trim().toLowerCase()===n || (s.name_zh||'').trim().toLowerCase()===n); }
+function parsedRows(){
+  const out = []; const M = IMP.map; const g = (r,k) => M[k]!=null ? r[M[k]] : '';
+  for (let i=IMP.hr+1;i<IMP.aoa.length;i++){ const r = IMP.aoa[i]; if (!r.some(c=>String(c).trim())) continue;
+    const row = { purchase_date: (M.purchase_date!=null && parseDate(g(r,'purchase_date'))) || IMP.def.date,
+      supplierName: M.supplier!=null ? String(g(r,'supplier')).trim() : '', supplier_id: M.supplier!=null ? null : IMP.def.supplier,
+      invoice_no: String(g(r,'invoice_no')||IMP.def.invoice||'').trim() || null,
+      flower: String(g(r,'flower')).trim(), variety: String(g(r,'variety')).trim()||null, grade: String(g(r,'grade')).trim()||null,
+      qty: num(g(r,'qty')), unit: String(g(r,'unit')).trim()||'шт', price: num(g(r,'price')), amount: num(g(r,'amount')) };
+    if (row.supplierName){ const s = findSupplier(row.supplierName); row.supplier_id = s?.id || null; }
+    if (row.amount==null && row.qty!=null && row.price!=null) row.amount = Math.round(row.qty*row.price*100)/100;
+    if (row.price==null && row.amount!=null && row.qty) row.price = Math.round(row.amount/row.qty*10000)/10000;
+    const low = row.flower.toLowerCase();
+    row.skip = !row.flower || row.qty==null || /итог|всего|total|合计|总计/.test(low);
+    row.ok = !row.skip && (row.supplier_id || row.supplierName);
+    out.push(row); }
+  return out;
+}
+function drawImport(){
+  const hdr = IMP.aoa[IMP.hr]||[]; const rows = parsedRows(); const ok = rows.filter(r=>r.ok); const bad = rows.length-ok.length;
+  const newSups = [...new Set(ok.filter(r=>!r.supplier_id && r.supplierName).map(r=>r.supplierName))];
+  const colOpt = sel => `<option value="">${t('notUsed')}</option>` + hdr.map((h,i)=>`<option value="${i}" ${+sel===i && sel!=null?'selected':''}>${String.fromCharCode(65+(i%26))}${i>=26?Math.floor(i/26):''}: ${esc(String(h).slice(0,30))}</option>`).join('');
+  $('#impBody').innerHTML = `<div class="card">
+    <div class="row">
+      <label>${t('sheet')}<select id="iSheet">${IMP.wb.SheetNames.map(s=>`<option ${s===IMP.sheet?'selected':''}>${esc(s)}</option>`).join('')}</select></label>
+      <label>${t('headerRow')}<input type="number" id="iHr" min="1" value="${IMP.hr+1}" style="width:90px"></label>
+    </div>
+    <h3>${t('mapping')}</h3>
+    <div class="grid">${FIELDS.map(([k,lab])=>`<label>${t(lab)}<select data-map="${k}">${colOpt(IMP.map[k])}</select></label>`).join('')}</div>
+    <h3>${t('defaults')}</h3>
+    <div class="grid">
+      <label>${t('date')}<input type="date" id="dDate" value="${IMP.def.date}"></label>
+      <label>${t('supplier')}<select id="dSup" ${IMP.map.supplier!=null?'disabled':''}><option value=""></option>${supOptions(IMP.def.supplier,true)}</select></label>
+      <label>${t('invoice')}<input id="dInv" value="${esc(IMP.def.invoice)}"></label>
+      <label>${t('shipment')}<select id="dShip"><option value="">${t('none')}</option>${shipOptions(IMP.def.shipment)}</select></label>
+      ${LOCAL?`<label>${t('newShipNum')}<input id="dNewShip" value="${esc(IMP.def.newShip)}" ${IMP.def.shipment?'disabled':''}></label>`:''}
+    </div>
+    <p style="margin-top:14px"><b>${ok.length}</b> ${t('rowsOk')} · <span class="muted">${bad} ${t('rowsBad')}</span>${newSups.length?` · <span class="badge b-warn">${newSups.length} ${t('newSups')}: ${esc(newSups.slice(0,5).join(', '))}${newSups.length>5?'…':''}</span>`:''}</p>
+    <div class="row" style="margin:10px 0"><button class="btn pri" id="doImp" ${ok.length?'':'disabled'}>${t('doImport')} (${ok.length})</button></div>
+    <h3>${t('preview')}</h3>
+    <div class="tw" style="max-height:420px"><table><thead><tr><th>${t('date')}</th><th>${t('supplier')}</th><th>${t('invoice')}</th><th>${t('flower')}</th><th>${t('variety')}</th><th>${t('grade')}</th><th class="num">${t('qty')}</th><th class="num">${t('price')}</th><th class="num">${t('amount')}</th></tr></thead><tbody>
+    ${rows.slice(0,60).map(r=>`<tr class="${r.ok?'':'err'}"><td>${esc(r.purchase_date)}</td><td>${esc(r.supplierName||supName(r.supplier_id))}${r.supplierName&&!r.supplier_id?' <span class="badge b-warn">new</span>':''}</td><td>${esc(r.invoice_no)}</td><td>${esc(r.flower)}</td><td>${esc(r.variety)}</td><td>${esc(r.grade)}</td><td class="num">${fmt(r.qty)}</td><td class="num">${fmt(r.price)}</td><td class="num">${fmt(r.amount)}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+  $('#iSheet').onchange = e => { IMP.sheet = e.target.value; loadSheet(); drawImport(); };
+  $('#iHr').onchange = e => { IMP.hr = Math.max(0, (+e.target.value||1)-1); guessMap(); drawImport(); };
+  document.querySelectorAll('[data-map]').forEach(s=>s.onchange=()=>{ const v=s.value; if(v==='') delete IMP.map[s.dataset.map]; else IMP.map[s.dataset.map]=+v; drawImport(); });
+  $('#dDate').onchange = e => { IMP.def.date = e.target.value; drawImport(); };
+  $('#dSup').onchange = e => { IMP.def.supplier = e.target.value; drawImport(); };
+  $('#dInv').onchange = e => { IMP.def.invoice = e.target.value; drawImport(); };
+  $('#dShip').onchange = e => { IMP.def.shipment = e.target.value; drawImport(); };
+  if ($('#dNewShip')) $('#dNewShip').onchange = e => { IMP.def.newShip = e.target.value; };
+  $('#doImp').onclick = async (e) => { e.target.disabled = true;
+    try{
+      const rows = parsedRows().filter(r=>r.ok);
+      const names = [...new Set(rows.filter(r=>!r.supplier_id).map(r=>r.supplierName))];
+      if (names.length) await DB.insert('suppliers', names.map(n=>(/[\u4e00-\u9fff]/.test(n) && !/[а-яё]/i.test(n) ? {name:n, name_zh:n, type:'farm', active:true} : {name:n, type:'farm', active:true})));
+      let shipId = IMP.def.shipment || null;
+      if (!shipId && IMP.def.newShip.trim()){ const [s] = await DB.insert('shipments', [{number:IMP.def.newShip.trim(), ship_date:IMP.def.date}]); shipId = s.id; }
+      const items = rows.map(r=>({ purchase_date:r.purchase_date, supplier_id:r.supplier_id || findSupplier(r.supplierName).id, invoice_no:r.invoice_no, shipment_id:shipId,
+        flower:r.flower, variety:r.variety, grade:r.grade, qty:r.qty, unit:r.unit, price:r.price, amount:r.amount, has_claim:false, claim_reasons:[], photos:[] }));
+      await DB.insert('purchase_items', items);
+      toast(`${t('imported')} ${items.length}`); IMP = null; IF.shipment = shipId || ''; TAB = 'items'; shell();
+    }catch(err){ alert(err.message); e.target.disabled = false; } };
+}
+
+/* ================= ОТГРУЗКИ ================= */
+function renderShipments(){
+  const cut = new Date(Date.now()-120*864e5).toISOString().slice(0,10);
+  const list = [...S.shipments].filter(s=>LOCAL || (s.ship_date||'') >= cut || S.purchase_items.some(i=>i.shipment_id===s.id)).sort((a,b)=>(b.ship_date||'').localeCompare(a.ship_date||''));
+  $('#main').innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${t('ship')}</h2>${LOCAL?`<button class="btn pri" id="addShip">${t('newShipment')}</button>`:`<span class="muted">${t('shipFromAmma')}</span>`}</div></div>
+    <div class="tw">${list.length?`<table><thead><tr><th>${t('number')}</th><th>${t('date')}</th><th>${t('destination')}</th><th class="num">${t('suppliersN')}</th><th class="num">${t('positions')}</th><th class="num">${t('amount')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th><th class="num">${t('claimSum')}</th><th></th></tr></thead><tbody>
+    ${list.map(s=>{ const its = S.purchase_items.filter(i=>i.shipment_id===s.id); const a = agg(its);
+      return `<tr><td><b>${esc(s.number)}</b></td><td>${esc(s.ship_date)}</td><td>${esc(s.destination)}</td><td class="num">${new Set(its.map(i=>i.supplier_id)).size}</td><td class="num">${a.n}</td><td class="num">${money(a.amount)}</td><td>${stars(a.avgRating)}</td><td class="num">${defectCell(a.defectPct)}</td><td class="num">${a.claimAmt?money(a.claimAmt):'—'}</td>
+      <td><button class="btn sm" data-open="${s.id}">${t('open')}</button>${LOCAL?` <button class="btn sm" data-edit="${s.id}">${t('edit')}</button>`:''}</td></tr>`; }).join('')}
+    </tbody></table>`:`<div class="empty">${t('noData')}</div>`}</div>`;
+  if ($('#addShip')) $('#addShip').onclick = () => shipModal(null);
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>shipModal(S.shipments.find(s=>s.id===b.dataset.edit)));
+  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{ IF.shipment=b.dataset.open; PER.items={preset:'allTime',from:'',to:''}; TAB='items'; shell(); });
+}
+function shipModal(s){
+  const bg = modal(`<h2>${s?esc(s.number):t('newShipment').replace('+ ','')}</h2><div class="grid">
+    <label>${t('number')} *<input id="s_num" value="${esc(s?.number)}"></label>
+    <label>${t('date')}<input type="date" id="s_date" value="${esc(s?.ship_date||today())}"></label>
+    <label>${t('destination')}<input id="s_dest" value="${esc(s?.destination)}"></label></div>
+    <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">${t('notes')}<textarea id="s_notes">${esc(s?.notes)}</textarea></label>
+    <div class="mfoot">${s?`<button class="btn danger" id="s_del">${t('del')}</button>`:''}<span class="sp"></span><button class="btn" id="s_c">${t('cancel')}</button><button class="btn pri" id="s_save">${t('save')}</button></div>`);
+  const m = bg.querySelector('.modal');
+  m.querySelector('#s_c').onclick = () => bg.remove();
+  if (s) m.querySelector('#s_del').onclick = async () => { if(!confirm(t('confirmDel'))) return;
+    for (const it of S.purchase_items.filter(i=>i.shipment_id===s.id)) await DB.update('purchase_items', it.id, {shipment_id:null});
+    await DB.remove('shipments', s.id); bg.remove(); shell(); };
+  m.querySelector('#s_save').onclick = async () => { const row = {number:m.querySelector('#s_num').value.trim(), ship_date:m.querySelector('#s_date').value||null, destination:m.querySelector('#s_dest').value.trim()||null, notes:m.querySelector('#s_notes').value.trim()||null};
+    if (!row.number) return alert(t('number'));
+    try{ if (s) await DB.update('shipments', s.id, row); else await DB.insert('shipments',[row]); bg.remove(); toast(t('saved')); shell(); }catch(e){ alert(e.message); } };
+}
+
+/* ================= ПОСТАВЩИКИ ================= */
+function renderSuppliers(){
+  const list = [...S.suppliers].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  $('#main').innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${t('sup')}</h2><button class="btn pri" id="addSup">${t('newSupplier')}</button></div></div>
+    <div class="tw">${list.length?`<table><thead><tr><th>${t('name')}</th><th>${t('nameZh')}</th><th>${t('type')}</th><th>${t('contact')}</th><th class="num">${t('positions')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th><th>${t('index')}</th><th>${t('verdict')}</th><th></th></tr></thead><tbody>
+    ${list.map(s=>{ const a = agg(S.purchase_items.filter(i=>i.supplier_id===s.id));
+      return `<tr style="${s.active===false?'opacity:.5':''}"><td><b>${esc(s.name)}</b></td><td>${esc(s.name_zh)}</td><td>${s.type==='reseller'?t('reseller'):t('farm')}</td><td>${esc(s.contact)}</td><td class="num">${a.n}</td><td>${stars(a.avgRating)}</td><td class="num">${defectCell(a.defectPct)}</td><td>${indexCell(a.index)}</td><td>${verdictBadge(a.verdict)}</td>
+      <td><button class="btn sm" data-det="${s.id}">${t('detail')}</button> <button class="btn sm" data-edit="${s.id}">${t('edit')}</button></td></tr>`; }).join('')}
+    </tbody></table>`:`<div class="empty">${t('noData')}</div>`}</div>`;
+  $('#addSup').onclick = async () => { await supplierModal(null); renderSuppliers(); };
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=async()=>{ await supplierModal(S.suppliers.find(s=>s.id===b.dataset.edit)); renderSuppliers(); });
+  document.querySelectorAll('[data-det]').forEach(b=>b.onclick=()=>{ SUMV.mode='S'; SUMV.detail=b.dataset.det; PER.sum={preset:'allTime',from:'',to:''}; TAB='sum'; shell(); });
+}
+function supplierModal(s){
+  return new Promise(resolve => {
+    const bg = modal(`<h2>${s?esc(s.name):t('newSupplier').replace('+ ','')}</h2><div class="grid">
+      <label>${t('name')} *<input id="p_name" value="${esc(s?.name)}"></label>
+      <label>${t('nameZh')}<input id="p_zh" value="${esc(s?.name_zh)}"></label>
+      <label>${t('type')}<select id="p_type"><option value="farm">${t('farm')}</option><option value="reseller" ${s?.type==='reseller'?'selected':''}>${t('reseller')}</option></select></label>
+      <label>${t('contact')}<input id="p_contact" value="${esc(s?.contact)}"></label></div>
+      <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">${t('notes')}<textarea id="p_notes">${esc(s?.notes)}</textarea></label>
+      <label style="display:flex;gap:6px;align-items:center;margin-top:10px"><input type="checkbox" id="p_act" ${s?.active===false?'':'checked'}> ${t('active')}</label>
+      <div class="mfoot">${s&&LOCAL?`<button class="btn danger" id="p_del">${t('del')}</button>`:''}<span class="sp"></span><button class="btn" id="p_c">${t('cancel')}</button><button class="btn pri" id="p_save">${t('save')}</button></div>`);
+    const m = bg.querySelector('.modal'); const done = v => { bg.remove(); resolve(v); };
+    m.querySelector('#p_c').onclick = () => done(null);
+    if (s && LOCAL) m.querySelector('#p_del').onclick = async () => { if (S.purchase_items.some(i=>i.supplier_id===s.id)) return alert(t('cantDelSup'));
+      if(!confirm(t('confirmDel'))) return; await DB.remove('suppliers', s.id); done(null); };
+    m.querySelector('#p_save').onclick = async () => {
+      const row = {name:m.querySelector('#p_name').value.trim(), name_zh:m.querySelector('#p_zh').value.trim()||null, type:m.querySelector('#p_type').value, contact:m.querySelector('#p_contact').value.trim()||null, notes:m.querySelector('#p_notes').value.trim()||null, active:m.querySelector('#p_act').checked};
+      if (!row.name) return alert(t('name'));
+      try{ const r = s ? await DB.update('suppliers', s.id, row) : (await DB.insert('suppliers',[row]))[0]; toast(t('saved')); done(r); }catch(e){ alert(e.message); } };
+  });
+}
+
+/* ================= СВОДКА ================= */
+const SUMV = {mode:'S', detail:null};
+let CHARTS = [];
+function renderSummary(){
+  CHARTS.forEach(c=>c.destroy()); CHARTS = [];
+  if (PER.sum.preset!=='custom' && !PER.sum.from && PER.sum.preset!=='allTime') [PER.sum.from, PER.sum.to] = presetRange(PER.sum.preset);
+  const items = S.purchase_items.filter(it=>inPer(it,'sum')); const A = agg(items);
+  const modes = [['S','byS'],['Sh','bySh'],['M','byM'],['F','byF']];
+  $('#main').innerHTML = `<div class="card"><div class="row">${periodUI('sum')}
+    <div class="seg" style="margin-left:auto">${modes.map(([k,l])=>`<button data-mode="${k}" class="${SUMV.mode===k?'on':''}">${t(l)}</button>`).join('')}</div>
+    <button class="btn" id="sumX">${t('exportX')}</button></div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${new Set(items.map(i=>i.supplier_id)).size}</div><div class="l">${t('suppliersN')}</div></div>
+      <div class="kpi"><div class="v">${money(A.amount)}</div><div class="l">${t('amount')}</div></div>
+      <div class="kpi"><div class="v">${A.avgRating==null?'—':fmt(A.avgRating,2)}</div><div class="l">${t('avgRating')}</div></div>
+      <div class="kpi"><div class="v">${pct(A.defectPct)}</div><div class="l">${t('defect')}</div></div>
+      <div class="kpi"><div class="v">${money(A.claimAmt)}</div><div class="l">${t('claimSum')}</div></div>
+      <div class="kpi"><div class="v">${A.n?fmt(A.checkedN/A.n*100,0)+'%':'—'}</div><div class="l">${t('checked')}</div></div>
+    </div>
+    <div id="sumBody"></div>`;
+  bindPeriod('sum', renderSummary);
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ SUMV.mode=b.dataset.mode; SUMV.detail=null; renderSummary(); });
+  if (!items.length){ $('#sumBody').innerHTML = `<div class="card empty">${t('noData')}</div>`; $('#sumX').disabled = true; return; }
+  if (SUMV.mode==='S' && SUMV.detail) return supplierDetail(items.filter(i=>i.supplier_id===SUMV.detail));
+  const T = ({S:tblSuppliers, Sh:tblShipments, M:tblMonths, F:tblFlowers})[SUMV.mode](items);
+  $('#sumBody').innerHTML = (SUMV.mode==='S'?`<p class="hint" style="margin:0 0 8px">${t('formula')}</p>`:'') + (SUMV.mode==='M'?`<div class="card"><canvas id="chM" height="90"></canvas></div>`:'') + `<div class="tw">${T.html}</div>`;
+  $('#sumX').onclick = () => { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(T.xls), t(modes.find(m=>m[0]===SUMV.mode)[1]).slice(0,30)); XLSX.writeFile(wb, `svodka_${SUMV.mode}_${PER.sum.from||'all'}_${PER.sum.to||''}.xlsx`); };
+  document.querySelectorAll('tr[data-sup]').forEach(tr=>tr.onclick=()=>{ SUMV.detail=tr.dataset.sup; renderSummary(); });
+  if (SUMV.mode==='M') monthChart($('#chM'), T.months);
+}
+function groupBy(items, keyFn){ const m = new Map(); for (const it of items){ const k = keyFn(it); if(!m.has(k)) m.set(k,[]); m.get(k).push(it); } return m; }
+const r1 = v => v==null?null:Math.round(v*10)/10;
+function tblSuppliers(items){
+  const rows = [...groupBy(items, i=>i.supplier_id)].map(([id,its])=>({id, a:agg(its), s:S.suppliers.find(x=>x.id===id)}));
+  rows.sort((x,y)=>(y.a.index??-1)-(x.a.index??-1));
+  return { html:`<table><thead><tr><th>${t('supplier')}</th><th>${t('type')}</th><th class="num">${t('deliveries')}</th><th class="num">${t('positions')}</th><th class="num">${t('qty')}</th><th class="num">${t('amount')}</th><th class="num">${t('checked')}</th><th>${t('avgRating')}</th>
+    ${PARAMS.map(p=>`<th class="num" title="${t(p)}">${t(p).split(' ')[0]}</th>`).join('')}<th class="num">${t('defect')}</th><th class="num">${t('claimsN')}</th><th class="num">${t('claimSum')}</th><th>${t('index')}</th><th>${t('verdict')}</th></tr></thead><tbody>
+    ${rows.map(({id,a,s})=>`<tr class="click" data-sup="${id}"><td><b>${esc(supName(id))}</b></td><td>${s?.type==='reseller'?t('reseller'):t('farm')}</td><td class="num">${a.deliveries}</td><td class="num">${a.n}</td><td class="num">${fmt(a.qty,0)}</td><td class="num">${money(a.amount)}</td>
+      <td class="num">${a.checkedN}/${a.n}</td><td>${stars(a.avgRating)}</td>${PARAMS.map(p=>`<td class="num">${a.params[p]==null?'—':fmt(a.params[p],1)}</td>`).join('')}
+      <td class="num">${defectCell(a.defectPct)}</td><td class="num">${a.claimItems}</td><td class="num">${a.claimAmt?money(a.claimAmt):'—'}</td><td>${indexCell(a.index)}</td><td>${verdictBadge(a.verdict)}</td></tr>`).join('')}</tbody></table>`,
+    xls: rows.map(({id,a,s})=>({[t('supplier')]:supName(id), [t('type')]:s?.type==='reseller'?t('reseller'):t('farm'), [t('deliveries')]:a.deliveries, [t('positions')]:a.n, [t('qty')]:a.qty, [t('amount')]:r1(a.amount), [t('checked')]:a.checkedN,
+      [t('avgRating')]:r1(a.avgRating), ...Object.fromEntries(PARAMS.map(p=>[t(p), r1(a.params[p])])), [t('defect')+' %']:r1(a.defectPct), [t('claimsN')]:a.claimItems, [t('claimSum')]:r1(a.claimAmt), [t('index')]:r1(a.index), [t('verdict')]:t(a.verdict)})) };
+}
+function tblShipments(items){
+  const rows = [...groupBy(items, i=>i.shipment_id||'')].map(([id,its])=>({id, a:agg(its), s:S.shipments.find(x=>x.id===id), sup:new Set(its.map(i=>i.supplier_id)).size}));
+  rows.sort((x,y)=>(y.s?.ship_date||'').localeCompare(x.s?.ship_date||''));
+  const nm = r => r.s ? r.s.number : (LANG==='zh'?'未分配批次':'Без отгрузки');
+  return { html:`<table><thead><tr><th>${t('shipment')}</th><th>${t('date')}</th><th class="num">${t('suppliersN')}</th><th class="num">${t('positions')}</th><th class="num">${t('qty')}</th><th class="num">${t('amount')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th><th class="num">${t('claimsN')}</th><th class="num">${t('claimSum')}</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td><b>${esc(nm(r))}</b></td><td>${esc(r.s?.ship_date)}</td><td class="num">${r.sup}</td><td class="num">${r.a.n}</td><td class="num">${fmt(r.a.qty,0)}</td><td class="num">${money(r.a.amount)}</td><td>${stars(r.a.avgRating)}</td><td class="num">${defectCell(r.a.defectPct)}</td><td class="num">${r.a.claimItems}</td><td class="num">${r.a.claimAmt?money(r.a.claimAmt):'—'}</td></tr>`).join('')}</tbody></table>`,
+    xls: rows.map(r=>({[t('shipment')]:nm(r), [t('date')]:r.s?.ship_date||'', [t('suppliersN')]:r.sup, [t('positions')]:r.a.n, [t('qty')]:r.a.qty, [t('amount')]:r1(r.a.amount), [t('avgRating')]:r1(r.a.avgRating), [t('defect')+' %']:r1(r.a.defectPct), [t('claimsN')]:r.a.claimItems, [t('claimSum')]:r1(r.a.claimAmt)})) };
+}
+function tblMonths(items){
+  const rows = [...groupBy(items, i=>monthKey(i.purchase_date))].map(([m,its])=>({m, a:agg(its), sup:new Set(its.map(i=>i.supplier_id)).size})).sort((x,y)=>x.m.localeCompare(y.m));
+  const tot = agg(items);
+  return { months: rows, html:`<table><thead><tr><th>${t('month')}</th><th class="num">${t('suppliersN')}</th><th class="num">${t('positions')}</th><th class="num">${t('qty')}</th><th class="num">${t('amount')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th><th class="num">${t('claimsN')}</th><th class="num">${t('claimSum')}</th></tr></thead><tbody>
+    ${[...rows].reverse().map(r=>`<tr><td><b>${r.m}</b></td><td class="num">${r.sup}</td><td class="num">${r.a.n}</td><td class="num">${fmt(r.a.qty,0)}</td><td class="num">${money(r.a.amount)}</td><td>${stars(r.a.avgRating)}</td><td class="num">${defectCell(r.a.defectPct)}</td><td class="num">${r.a.claimItems}</td><td class="num">${r.a.claimAmt?money(r.a.claimAmt):'—'}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>${t('total')}</td><td class="num">${new Set(items.map(i=>i.supplier_id)).size}</td><td class="num">${tot.n}</td><td class="num">${fmt(tot.qty,0)}</td><td class="num">${money(tot.amount)}</td><td>${stars(tot.avgRating)}</td><td class="num">${pct(tot.defectPct)}</td><td class="num">${tot.claimItems}</td><td class="num">${money(tot.claimAmt)}</td></tr></tfoot></table>`,
+    xls: rows.map(r=>({[t('month')]:r.m, [t('suppliersN')]:r.sup, [t('positions')]:r.a.n, [t('qty')]:r.a.qty, [t('amount')]:r1(r.a.amount), [t('avgRating')]:r1(r.a.avgRating), [t('defect')+' %']:r1(r.a.defectPct), [t('claimsN')]:r.a.claimItems, [t('claimSum')]:r1(r.a.claimAmt)})) };
+}
+function tblFlowers(items){
+  const rows = [...groupBy(items, i=>(i.flower||'').trim()+'|'+(i.variety||'').trim())].map(([k,its])=>{
+    const [fl,va] = k.split('|'); const a = agg(its);
+    const bySup = [...groupBy(its, i=>i.supplier_id)].map(([id,x])=>({id, a:agg(x)})).filter(x=>x.a.index!=null).sort((x,y)=>y.a.index-x.a.index);
+    const pq = its.reduce((s,i)=>s+(+i.qty||0),0);
+    return {fl, va, a, sups:new Set(its.map(i=>i.supplier_id)).size, avgPrice: pq ? its.reduce((s,i)=>s+amt(i),0)/pq : null, best: bySup[0]};
+  }).sort((x,y)=>y.a.amount-x.a.amount);
+  return { html:`<table><thead><tr><th>${t('flower')}</th><th>${t('variety')}</th><th class="num">${t('suppliersN')}</th><th class="num">${t('qty')}</th><th class="num">${t('avgPrice')}</th><th class="num">${t('amount')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th><th>${t('bestSup')}</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td><b>${esc(r.fl)}</b></td><td>${esc(r.va)}</td><td class="num">${r.sups}</td><td class="num">${fmt(r.a.qty,0)}</td><td class="num">${money(r.avgPrice)}</td><td class="num">${money(r.a.amount)}</td><td>${stars(r.a.avgRating)}</td><td class="num">${defectCell(r.a.defectPct)}</td><td>${r.best?`${esc(supName(r.best.id))} <span class="muted">(${fmt(r.best.a.index,0)})</span>`:'—'}</td></tr>`).join('')}</tbody></table>`,
+    xls: rows.map(r=>({[t('flower')]:r.fl, [t('variety')]:r.va, [t('suppliersN')]:r.sups, [t('qty')]:r.a.qty, [t('avgPrice')]:r1(r.avgPrice), [t('amount')]:r1(r.a.amount), [t('avgRating')]:r1(r.a.avgRating), [t('defect')+' %']:r1(r.a.defectPct), [t('bestSup')]:r.best?supName(r.best.id):''})) };
+}
+function monthChart(canvas, months){
+  if (!window.Chart || !canvas) return;
+  CHARTS.push(new Chart(canvas, {type:'bar', data:{labels:months.map(r=>r.m), datasets:[
+    {type:'line', label:t('avgRating'), data:months.map(r=>r.a.avgRating==null?null:+r.a.avgRating.toFixed(2)), borderColor:'#2f6b4f', backgroundColor:'#2f6b4f', yAxisID:'y', tension:.3, spanGaps:true},
+    {type:'bar', label:t('defect')+' %', data:months.map(r=>r.a.defectPct==null?null:+r.a.defectPct.toFixed(1)), backgroundColor:'rgba(178,58,58,.35)', yAxisID:'y1'}]},
+    options:{responsive:true, interaction:{mode:'index',intersect:false}, scales:{y:{min:1,max:5,position:'left',title:{display:true,text:t('avgRating')}}, y1:{min:0,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:t('defect')+' %'}}}}}));
+}
+function supplierDetail(its){
+  const id = SUMV.detail, a = agg(its), s = S.suppliers.find(x=>x.id===id);
+  const months = [...groupBy(its, i=>monthKey(i.purchase_date))].map(([m,x])=>({m, a:agg(x)})).sort((x,y)=>x.m.localeCompare(y.m));
+  const reasons = Object.entries(a.reasons).sort((x,y)=>y[1]-x[1]);
+  const fl = [...groupBy(its, i=>(i.flower||'')+' '+(i.variety||''))].map(([k,x])=>{ const b = agg(x); return {k, b, price: b.qty? b.amount/b.qty : null}; }).sort((x,y)=>y.b.amount-x.b.amount);
+  const claims = its.filter(i=>i.has_claim).sort((x,y)=>(y.purchase_date||'').localeCompare(x.purchase_date||''));
+  $('#sumBody').innerHTML = `
+    <div class="card"><div class="row" style="justify-content:space-between;align-items:center">
+      <div><button class="btn sm" id="back">${t('back')}</button> <b style="font-size:17px;margin-left:8px">${esc(supName(id))}</b> <span class="muted">${s?.type==='reseller'?t('reseller'):t('farm')}${s?.contact?' · '+esc(s.contact):''}</span></div>
+      <div style="font-size:15px">${t('index')}: <b>${a.index==null?'—':fmt(a.index,0)}</b> ${verdictBadge(a.verdict)}</div></div>
+      ${s?.notes?`<p class="hint">${esc(s.notes)}</p>`:''}</div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${a.deliveries}</div><div class="l">${t('deliveries')} · ${t('checked')} ${a.delivCheckedN}</div></div>
+      <div class="kpi"><div class="v">${money(a.amount)}</div><div class="l">${t('amount')}</div></div>
+      <div class="kpi"><div class="v">${a.avgRating==null?'—':fmt(a.avgRating,2)}</div><div class="l">${t('avgRating')}</div></div>
+      <div class="kpi"><div class="v">${pct(a.defectPct)}</div><div class="l">${t('defect')}</div></div>
+      <div class="kpi"><div class="v">${a.claimItems}</div><div class="l">${t('claimsN')} · ${money(a.claimAmt)}</div></div>
+    </div>
+    <div class="two">
+      <div class="card"><h2>${t('trend')}</h2><canvas id="chS" height="160"></canvas></div>
+      <div class="card"><h2>${t('quality')}</h2>
+        ${PARAMS.map(p=>`<div class="qrow"><span>${t(p)}</span>${stars(a.params[p])}</div>`).join('')}
+        <h3>${t('topReasons')}</h3>
+        ${reasons.length?reasons.map(([k,n])=>`<div class="qrow"><span>${rs(k)}</span><b>${n}</b></div>`).join(''):'<span class="muted">—</span>'}
+      </div>
+    </div>
+    <div class="card"><h2>${t('flowersOf')}</h2><div class="tw"><table><thead><tr><th>${t('flower')}</th><th class="num">${t('qty')}</th><th class="num">${t('avgPrice')}</th><th class="num">${t('amount')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th></tr></thead><tbody>
+      ${fl.map(r=>`<tr><td>${esc(r.k)}</td><td class="num">${fmt(r.b.qty,0)}</td><td class="num">${money(r.price)}</td><td class="num">${money(r.b.amount)}</td><td>${stars(r.b.avgRating)}</td><td class="num">${defectCell(r.b.defectPct)}</td></tr>`).join('')}</tbody></table></div></div>
+    ${claims.length?`<div class="card"><h2>${t('claim')} (${claims.length})</h2><div class="tw"><table><thead><tr><th>${t('date')}</th><th>${t('flower')}</th><th class="num">${t('claimQty')}</th><th class="num">${t('claimAmt')}</th><th>${t('reasons')}</th><th>${t('status')}</th><th>${t('note')}</th></tr></thead><tbody>
+      ${claims.map(c=>`<tr class="click" data-item="${c.id}"><td>${esc(c.purchase_date)}</td><td>${esc(c.flower)} ${esc(c.variety||'')}</td><td class="num">${fmt(c.claim_qty,0)}</td><td class="num">${money(c.claim_amount)}</td><td>${(c.claim_reasons||[]).map(rs).join(', ')}${(c.photos||[]).length?' 📷':''}</td><td>${c.claim_status?t('st_'+c.claim_status):''}</td><td style="white-space:normal;max-width:300px">${esc(c.claim_note)}</td></tr>`).join('')}</tbody></table></div></div>`:''}`;
+  $('#back').onclick = () => { SUMV.detail = null; renderSummary(); };
+  document.querySelectorAll('tr[data-item]').forEach(tr=>tr.onclick=()=>itemModal(S.purchase_items.find(x=>x.id===tr.dataset.item)));
+  monthChart($('#chS'), months);
+  $('#sumX').onclick = () => { const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(its.map(itemXls)), 'Закупки');
+    XLSX.writeFile(wb, `postavshik_${supName(id).replace(/[^\wа-яё一-龥]+/gi,'_')}.xlsx`); };
+}
+const itemXls = i => ({[t('date')]:i.purchase_date, [t('shipment')]:shipName(i.shipment_id), [t('supplier')]:supName(i.supplier_id), [t('invoice')]:i.invoice_no||'', [t('flower')]:i.flower, [t('variety')]:i.variety||'', [t('grade')]:i.grade||'',
+  [t('qty')]:i.qty, [t('unit')]:i.unit||'', [t('price')]:i.price, [t('amount')]:amt(i), ...Object.fromEntries(PARAMS.map(p=>[t(p), i[p]??''])), [t('rating')]:r1(effRating(i))??'',
+  [t('claim')]:i.has_claim?'✔':'', [t('claimQty')]:i.claim_qty??'', [t('claimAmt')]:i.claim_amount??'', [t('reasons')]:(i.claim_reasons||[]).map(rs).join(', '), [t('status')]:i.claim_status?t('st_'+i.claim_status):'', [t('note')]:i.claim_note||''});
+
+/* ================= НАСТРОЙКИ ================= */
+function renderSettings(){
+  $('#main').innerHTML = `<div class="card"><h2>${t('thresholds')}</h2>
+    <div class="grid">
+      <label>${t('thContract')}<input type="number" id="c1" value="${CFG.contract}"></label>
+      <label>${t('thDrop')}<input type="number" id="c2" value="${CFG.drop}"></label>
+      <label>${t('thMin')}<input type="number" id="c3" value="${CFG.minDeliv}"></label>
+      <label>${t('thPen')}<input type="number" id="c4" value="${CFG.pen}" step="0.5"></label>
+    </div><p class="hint">${t('formula')} ${LANG==='zh'?'阈值保存在本浏览器。':'Пороги хранятся в этом браузере.'}</p>
+    <button class="btn pri" id="cSave">${t('save')}</button></div>
+    <div class="card"><h2>${t('data')}</h2><div class="row">
+      <button class="btn" id="xAll">${t('exportAll')}</button>
+      ${LOCAL?`<button class="btn" id="bk">${t('backup')}</button>
+      <label class="btn">${t('restore')}<input type="file" id="rs" accept=".json" hidden></label>
+      <button class="btn" id="demoD">${t('demoData')}</button>
+      <button class="btn danger" id="clr">${t('clearAll')}</button>`:''}
+    </div></div>`;
+  $('#cSave').onclick = () => { CFG.contract=+$('#c1').value; CFG.drop=+$('#c2').value; CFG.minDeliv=+$('#c3').value; CFG.pen=+$('#c4').value; saveCfg(); toast(t('saved')); };
+  $('#xAll').onclick = () => { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...S.purchase_items].sort((a,b)=>(a.purchase_date||'').localeCompare(b.purchase_date||'')).map(itemXls)), 'Закупки'); XLSX.writeFile(wb, `zakupki_${today()}.xlsx`); };
+  if (!LOCAL) return;
+  $('#bk').onclick = () => { const b = new Blob([JSON.stringify(S)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `quality_backup_${today()}.json`; a.click(); };
+  $('#rs').onchange = async e => { const d = JSON.parse(await e.target.files[0].text()); TABLES.forEach(tb=>{ S[tb]=d[tb]||[]; DB.saveLocal(tb); }); toast(t('saved')); shell(); };
+  $('#clr').onclick = () => { if(!confirm(t('confirmDel'))) return; TABLES.forEach(tb=>{ S[tb]=[]; DB.saveLocal(tb); }); shell(); };
+  $('#demoD').onclick = async () => { await makeDemo(); toast(t('saved')); TAB='sum'; shell(); };
+}
+async function makeDemo(){
+  const sups = [['Юньнань Цзиньхуа','云南金花','farm',4.5,0.02],['Доуна База №3','斗南3号基地','farm',4.1,0.04],['Лю Трейд','刘氏花卉','reseller',3.4,0.09],['Чэнгун Розы','呈贡玫瑰园','farm',4.7,0.01],['Хуа Юань','花园批发','reseller',2.9,0.15],['Цзиньнин Хризантемы','晋宁菊花','farm',3.9,0.05]];
+  const created = await DB.insert('suppliers', sups.map(([name,name_zh,type])=>({name,name_zh,type,active:true})));
+  const fl = [['Роза','Explorer',1.9],['Роза','Freedom',1.6],['Роза','Pink Floyd',2.2],['Хризантема','Baltica',1.1],['Гвоздика','Moon Light',0.8],['Эустома','Rosita White',2.6],['Гипсофила','Xlence',1.4]];
+  const ships = []; const items = []; const now = new Date();
+  for (let k=11;k>=0;k--){ for (const w of [3,17]){ const d = new Date(now.getFullYear(), now.getMonth()-k, w); if (d>now) continue; const ds = d.toISOString().slice(0,10); ships.push({id:uid(), number:`AM-${ds.slice(2,4)}${ds.slice(5,7)}-${w}`, ship_date:ds, destination: w===3?'Москва':'Новосибирск'}); } }
+  await DB.insert('shipments', ships);
+  const rnd = (a,b)=>a+Math.random()*(b-a); const clamp = v=>Math.max(1,Math.min(5,Math.round(v)));
+  for (const sh of ships){ for (let j=0;j<8;j++){ const si = Math.floor(Math.random()*created.length); const [, , , q, def] = sups[si]; const f = fl[Math.floor(Math.random()*fl.length)];
+    const qty = Math.round(rnd(1,8))*100; const price = +(f[2]*rnd(.85,1.2)).toFixed(2); const it = {shipment_id:sh.id, supplier_id:created[si].id, purchase_date:sh.ship_date, invoice_no:'N'+Math.floor(rnd(1000,9999)),
+      flower:f[0], variety:f[1], grade: f[0]==='Роза'?['50 см','60 см','70 см'][Math.floor(Math.random()*3)]:null, qty, unit:'шт', price, amount:+(qty*price).toFixed(2), photos:[], claim_reasons:[]};
+    if (Math.random()<.85){ PARAMS.forEach(p=>it[p]=clamp(q+rnd(-1,1))); const hit = Math.random() < def*4;
+      if (hit){ const cq = Math.round(qty*rnd(def*.5,def*2)); Object.assign(it,{has_claim:true, claim_qty:cq, claim_amount:+(cq*price).toFixed(2), claim_status:['open','comp','rej'][Math.floor(Math.random()*3)], claim_reasons:[Object.keys(REASONS)[Math.floor(Math.random()*9)]]}); } }
+    items.push(it); } }
+  await DB.insert('purchase_items', items);
+}
+
+/* ================= СТАРТ ================= */
+function authLoginEmail(login){
+  const l = String(login||'').trim().toLowerCase();
+  if (/^[a-z0-9._-]+$/.test(l)) return l + '@' + AMMA_LOGIN_DOMAIN;
+  return 'u-' + Array.from(new TextEncoder().encode(l), b => b.toString(16).padStart(2,'0')).join('') + '@' + AMMA_LOGIN_DOMAIN;
+}
+async function isStaff(){
+  const {data:w, error} = await sb.rpc('app_whoami');
+  if (error || w?.status !== 'active') return false;
+  const {data:u} = await sb.from('users').select('role').eq('id', w.id).maybeSingle();
+  return STAFF_ROLES.includes(u?.role);
+}
+async function start(){
+  $('#app').innerHTML = `<div class="empty">${t('loading')}</div>`;
+  if (!LOCAL){
+    const {data:{session}} = await sb.auth.getSession();
+    if (!session) return loginScreen();
+    USER = session.user;
+    if (!(await isStaff())) return loginScreen(t('noAccess'));
+  }
+  try { await DB.loadAll(); } catch(e){ $('#app').innerHTML = `<div class="card login"><b>${t('loadErr')}</b><p>${esc(e.message)}</p><p class="hint">${t('loadHint')}</p></div>`; return; }
+  shell();
+}
+function loginScreen(msg){
+  $('#app').innerHTML = `<div class="card login"><h2>AMMA · ${t('app')}</h2>
+    <input id="lEmail" placeholder="${t('login2')}" autocomplete="username"><input id="lPass" type="password" placeholder="${t('password')}" autocomplete="current-password">
+    <button class="btn pri" style="width:100%" id="lGo">${t('login')}</button><p class="hint" id="lErr">${msg?esc(msg):''}</p></div>`;
+  if (msg) sb.auth.signOut();
+  const go = async () => { const id = $('#lEmail').value.trim();
+    const email = id.includes('@') ? id.toLowerCase() : authLoginEmail(id);
+    const {error} = await sb.auth.signInWithPassword({email, password:$('#lPass').value});
+    if (error) $('#lErr').textContent = LANG==='zh' ? '账号或密码错误' : 'Неверный логин или пароль'; else start(); };
+  $('#lGo').onclick = go; $('#lPass').onkeydown = e => { if (e.key==='Enter') go(); };
+}
+start();
+</script>
+</body>
+</html>
