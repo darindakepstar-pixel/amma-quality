@@ -100,6 +100,12 @@ tfoot td{font-weight:600;background:#faf9f7}
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:200;cursor:zoom-out}
 .lightbox img{max-width:95vw;max-height:95vh}
 .empty{padding:30px;text-align:center;color:var(--muted)}
+.bulk{position:sticky;top:58px;z-index:15;background:var(--brand-soft);border:1px solid var(--brand);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+td.ck,th.ck{width:28px;padding-right:0}
+td.ck input,th.ck input{width:16px;height:16px;cursor:pointer}
+tr.sel td{background:#f1f7f3}
+.supmap td{white-space:normal;vertical-align:middle}
+.supmap select,.supmap input{width:100%}
 </style>
 </head>
 <body>
@@ -175,6 +181,23 @@ const I = {
  detail:['Подробно','详情'], topReasons:['Частые причины претензий','常见索赔原因'], flowersOf:['Что берём у поставщика','采购的花材'], trend:['Динамика по месяцам','月度趋势'],
  open:['Открыть закупки','查看采购'], shown:['Показано','显示'], of:['из','/'], total:['Итого','合计'], back:['← Назад','← 返回'],
  loading:['Загрузка…','加载中…'],
+ order:['Заказ','订单'], orders:['Заказы','订单'], byO:['По заказам','按订单'], noOrder:['Без заказа','未分配订单'],
+ selected:['Выбрано','已选'], selAll:['Выбрать все показанные','全选'], clearSel:['Снять выбор','取消选择'],
+ toOrder:['Привязать к заказу…','分配到订单…'], toShip:['Привязать к отгрузке…','分配到批次…'], changeSup:['Сменить поставщика…','更换供应商…'], delSel:['Удалить выбранные','删除所选'],
+ confirmDelN:['Удалить выбранные позиции закупки? Отменить нельзя. Позиций:','确定删除所选记录？无法撤销。条数：'],
+ pickOrder:['Выберите заказ','选择订单'], pickShip:['Выберите отгрузку','选择批次'], pickSup:['Выберите поставщика','选择供应商'], apply:['Применить','应用'],
+ unlink:['— отвязать —','— 取消关联 —'], orderShipHint:['Отгрузка подставится из заказа автоматически.','批次将根据订单自动填写。'],
+ updatedN:['Обновлено позиций:','已更新条数：'], deletedN:['Удалено позиций:','已删除条数：'],
+ needSql:['Чтобы привязывать закупки к заказам, один раз выполните в Supabase → SQL Editor:','如需关联订单，请在 Supabase → SQL Editor 执行一次：'],
+ merge:['Объединить','合并'], mergeTitle:['Объединить поставщика','合并供应商'],
+ mergeHint:['Все закупки этого поставщика перейдут к выбранному, а дубль будет удалён (или скрыт, если он уже есть в журнале закупа системы заказов).','该供应商的所有采购记录将转到所选供应商，重复项将被删除（如已在订单系统采购记录中使用，则停用）。'],
+ mergeInto:['Перенести в','合并到'], merged:['Объединено. Перенесено позиций:','已合并，转移条数：'],
+ supUsedAmma:['Поставщик используется в системе заказов (журнал закупа) — он скрыт (снята галочка «Активен»), а не удалён.','该供应商已在订单系统中使用 — 已停用而非删除。'],
+ noRu:['нет русского названия','无俄文名'], onlyZh:['Только китайские названия','仅中文名称'],
+ supMapTitle:['Поставщики из файла, которых нет в базе','文件中的新供应商'],
+ supMapHint:['Выберите существующего поставщика, если это он же, или задайте русское название для нового. Клиенты видят в журнале закупа именно русское название.','如为已有供应商请选择；如为新供应商请填写俄文名称。'],
+ createNew:['+ создать нового','+ 新建'], ruName:['Русское название','俄文名称'], fromFile:['В файле','文件中'],
+ delSupConfirm:['Удалить поставщика?','确定删除供应商？'],
  shipFromAmma:['Отгрузки берутся из системы заказов AMMA','发货批次来自 AMMA 订单系统'], login2:['Логин или email','账号或邮箱'],
  noAccess:['Нет доступа: трекер открыт только сотрудникам (менеджер, склад).','无权限：仅限员工（经理、仓库）使用。'],
  loadErr:['Ошибка загрузки','加载错误'], loadHint:['Проверьте, что в Supabase выполнен schema-amma.sql.','请确认已在 Supabase 执行 schema-amma.sql。'], noData:['Нет данных за период','该期间无数据'], required:['Заполните поставщика, дату, цветок и количество','请填写供应商、日期、花材和数量'],
@@ -188,7 +211,7 @@ const rs = k => (REASONS[k]||[k,k])[LANG==='zh'?1:0];
 const LOCAL = !SUPABASE_URL || !SUPABASE_ANON_KEY || new URLSearchParams(location.search).has('demo');
 const sb = LOCAL ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const TABLES = ['suppliers','shipments','purchase_items'];
-const S = {suppliers:[], shipments:[], purchase_items:[]};
+const S = {suppliers:[], shipments:[], purchase_items:[], orders:[]};
 
 /* В базе AMMA: поставщики и отгрузки — общие таблицы системы заказов, закупки — qa_items */
 const sid = v => v == null || v === '' ? null : String(v);
@@ -201,7 +224,7 @@ const MAP = {
     from: r => ({id:sid(r.id), number:r.ship_number || ('#'+r.id), ship_date:r.ship_date, destination:r.direction, notes:r.note}),
     to: r => pick(r, {number:'ship_number', ship_date:'ship_date', destination:'direction', notes:'note'}) },
   purchase_items: { table:'qa_items',
-    from: r => ({...r, id:sid(r.id), supplier_id:sid(r.supplier_id), shipment_id:sid(r.shipment_id)}),
+    from: r => ({...r, id:sid(r.id), supplier_id:sid(r.supplier_id), shipment_id:sid(r.shipment_id), ...(r.order_id !== undefined ? {order_id:sid(r.order_id)} : {})}),
     to: r => { const o = {...r}; delete o.created_at; delete o.updated_at; return o; } },
 };
 const DB = {
@@ -230,8 +253,60 @@ const DB = {
     if (!LOCAL){ const {error} = await sb.from(MAP[tb].table).delete().eq('id', id); if (error) throw error; }
     S[tb] = S[tb].filter(x=>x.id!==id); if (LOCAL) DB.saveLocal(tb);
   },
-  async loadAll(){ for (const tb of TABLES) S[tb] = await DB.all(tb); }
+  async loadAll(){ for (const tb of TABLES) S[tb] = await DB.all(tb); await loadOrders(); },
+  async updateMany(tb, ids, patch){
+    if (!ids.length) return;
+    if (LOCAL){ S[tb].forEach(r=>{ if (ids.includes(r.id)) Object.assign(r, patch); }); DB.saveLocal(tb); return; }
+    for (let i=0;i<ids.length;i+=200){ const part = ids.slice(i,i+200);
+      const {data,error} = await sb.from(MAP[tb].table).update(MAP[tb].to(patch)).in('id', part).select(); if (error) throw error;
+      for (const d of data){ const r = MAP[tb].from(d); const k = S[tb].findIndex(x=>x.id===r.id); if (k>=0) S[tb][k] = r; } }
+  },
+  async removeMany(tb, ids){
+    if (!ids.length) return;
+    if (!LOCAL) for (let i=0;i<ids.length;i+=200){ const {error} = await sb.from(MAP[tb].table).delete().in('id', ids.slice(i,i+200)); if (error) throw error; }
+    const set = new Set(ids); S[tb] = S[tb].filter(x=>!set.has(x.id)); if (LOCAL) DB.saveLocal(tb);
+  }
 };
+
+/* ---------------- заказы (из системы заказов AMMA, только чтение) ---------------- */
+let HAS_ORDER = false;
+const ORDER_SQL = `do $$ declare t text; begin
+  select data_type into t from information_schema.columns where table_schema='public' and table_name='orders' and column_name='id';
+  execute format('alter table public.qa_items add column if not exists order_id %s references public.orders(id) on delete set null',
+    case when t='uuid' then 'uuid' else 'bigint' end);
+end $$;
+create index if not exists qa_items_order_id_idx on public.qa_items(order_id);
+notify pgrst, 'reload schema';`;
+async function loadOrders(){
+  S.orders = [];
+  if (LOCAL){ HAS_ORDER = false; return; }
+  const probe = await sb.from('qa_items').select('order_id').limit(1); HAS_ORDER = !probe.error;
+  const since = new Date(Date.now()-400*864e5).toISOString().slice(0,10);
+  let {data, error} = await sb.from('orders').select('id,order_number,status,date_order,shipment_id,client:users!orders_client_id_fkey(company_name,login)').gte('date_order', since).order('date_order',{ascending:false}).limit(1000);
+  if (error) ({data, error} = await sb.from('orders').select('id,order_number,status,date_order,shipment_id').gte('date_order', since).order('date_order',{ascending:false}).limit(1000));
+  if (error){ console.warn('orders', error); return; }
+  S.orders = (data||[]).map(o=>({id:sid(o.id), number:o.order_number || ('#'+o.id), date:o.date_order, status:o.status, shipment_id:sid(o.shipment_id), client:o.client?.company_name || o.client?.login || ''}));
+  // заказы старше 400 дней, к которым уже привязаны закупки
+  const need = [...new Set(S.purchase_items.map(i=>i.order_id).filter(Boolean))].filter(id=>!S.orders.some(o=>o.id===id));
+  if (need.length){ const r = await sb.from('orders').select('id,order_number,date_order,shipment_id').in('id', need);
+    (r.data||[]).forEach(o=>S.orders.push({id:sid(o.id), number:o.order_number||('#'+o.id), date:o.date_order, shipment_id:sid(o.shipment_id), client:''})); }
+}
+const orderName = id => { const o = (S.orders||[]).find(x=>x.id===id); return o ? o.number + (o.client ? ' · ' + o.client : '') : (id ? '#'+id : ''); };
+function orderOptions(sel){ return [...(S.orders||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(o=>`<option value="${o.id}" ${o.id===sel?'selected':''}>${esc(o.number)}${o.client?' · '+esc(o.client):''}${o.date?' · '+esc(o.date):''}${o.shipment_id?' → '+esc(shipName(o.shipment_id)):''}</option>`).join(''); }
+const useOrders = () => HAS_ORDER && (S.orders||[]).length > 0;
+const isZhOnly = s => !!s && /[一-鿿]/.test(s.name||'') && !/[а-яёa-z]/i.test(s.name||'');
+
+/* безопасное удаление поставщика: таблица общая с системой заказов */
+async function safeDeleteSupplier(s){
+  if (S.purchase_items.some(i=>i.supplier_id===s.id)) { alert(t('cantDelSup')); return false; }
+  if (LOCAL){ await DB.remove('suppliers', s.id); return true; }
+  for (const tb of ['order_purchases','purchases']){
+    const {count, error} = await sb.from(tb).select('id',{count:'exact', head:true}).eq('supplier_id', s.id);
+    if (!error && count > 0){ await DB.update('suppliers', s.id, {active:false}); alert(t('supUsedAmma')); return false; }
+  }
+  try { await DB.remove('suppliers', s.id); return true; }
+  catch(e){ await DB.update('suppliers', s.id, {active:false}).catch(()=>{}); alert(t('supUsedAmma') + '\n\n' + e.message); return false; }
+}
 
 /* фото: сжимаем в браузере до ~1280px JPEG */
 function compressImage(file, max = 1280){
@@ -357,19 +432,25 @@ function shell(){
 }
 
 /* ================= ЗАКУПКИ ================= */
-const IF = {supplier:'', shipment:'', q:'', claims:false, unchecked:false};
+const IF = {supplier:'', shipment:'', order:'', q:'', claims:false, unchecked:false};
+const SEL = new Set();
 function renderItems(){
   const f = IF;
   let rows = S.purchase_items.filter(it => inPer(it,'items')
     && (!f.supplier || it.supplier_id===f.supplier) && (!f.shipment || it.shipment_id===f.shipment)
+    && (!f.order || (f.order==='__none' ? !it.order_id : it.order_id===f.order))
     && (!f.claims || it.has_claim) && (!f.unchecked || !isChecked(it))
     && (!f.q || ((it.flower||'')+' '+(it.variety||'')).toLowerCase().includes(f.q.toLowerCase())));
   rows.sort((a,b)=>(b.purchase_date||'').localeCompare(a.purchase_date||'') || (b.created_at||'').localeCompare(a.created_at||''));
-  const a = agg(rows); const LIM = 500;
+  const a = agg(rows); const LIM = 500; const ORD = useOrders();
+  for (const id of [...SEL]) if (!S.purchase_items.some(x=>x.id===id)) SEL.delete(id);
+  const shownIds = rows.slice(0,LIM).map(r=>r.id); const allOn = shownIds.length && shownIds.every(id=>SEL.has(id));
   $('#main').innerHTML = `
+    ${!LOCAL && !HAS_ORDER ? `<div class="card" style="border-color:var(--warn)"><b>${t('needSql')}</b><pre style="white-space:pre-wrap;font-size:12px;background:#faf9f7;padding:10px;border-radius:8px;margin:8px 0 6px">${esc(ORDER_SQL)}</pre><button class="btn sm" id="cpSql">${LANG==='zh'?'复制':'Скопировать'}</button></div>`:''}
     <div class="card"><div class="row">
       ${periodUI('items')}
       <label>${t('supplier')}<select id="fSup"><option value="">${t('all')}</option>${supOptions(f.supplier)}</select></label>
+      ${ORD?`<label>${t('order')}<select id="fOrd"><option value="">${t('all')}</option><option value="__none" ${f.order==='__none'?'selected':''}>${t('noOrder')}</option>${orderOptions(f.order)}</select></label>`:''}
       <label>${t('shipment')}<select id="fShip"><option value="">${t('all')}</option>${shipOptions(f.shipment)}</select></label>
       <label style="flex:1;min-width:160px">${t('search')}<input id="fQ" value="${esc(f.q)}"></label>
       <label style="flex-direction:row;align-items:center;gap:6px;color:var(--ink)"><input type="checkbox" id="fC" ${f.claims?'checked':''}>${t('onlyClaims')}</label>
@@ -384,11 +465,19 @@ function renderItems(){
       <div class="kpi"><div class="v">${pct(a.defectPct)}</div><div class="l">${t('defect')}</div></div>
       <div class="kpi"><div class="v">${money(a.claimAmt)}</div><div class="l">${t('claimSum')}</div></div>
     </div>
+    ${SEL.size ? `<div class="bulk"><b>${t('selected')}: ${SEL.size}</b>
+      ${ORD?`<button class="btn sm pri" id="bOrd">${t('toOrder')}</button>`:''}
+      <button class="btn sm" id="bShip">${t('toShip')}</button>
+      <button class="btn sm" id="bSup">${t('changeSup')}</button>
+      <button class="btn sm danger" id="bDel">${t('delSel')}</button>
+      <span style="flex:1"></span><button class="btn sm" id="bClr">${t('clearSel')}</button></div>` : ''}
     <div class="tw">${rows.length ? `<table><thead><tr>
-      <th>${t('date')}</th><th>${t('shipment')}</th><th>${t('supplier')}</th><th>${t('invoice')}</th><th>${t('flower')}</th><th>${t('variety')}</th><th>${t('grade')}</th>
+      <th class="ck"><input type="checkbox" id="ckAll" title="${t('selAll')}" ${allOn?'checked':''}></th>
+      <th>${t('date')}</th>${ORD?`<th>${t('order')}</th>`:''}<th>${t('shipment')}</th><th>${t('supplier')}</th><th>${t('invoice')}</th><th>${t('flower')}</th><th>${t('variety')}</th><th>${t('grade')}</th>
       <th class="num">${t('qty')}</th><th class="num">${t('price')}</th><th class="num">${t('amount')}</th><th>${t('rating')}</th><th>${t('claim')}</th></tr></thead><tbody>
-      ${rows.slice(0,LIM).map(it=>`<tr class="click" data-id="${it.id}">
-        <td>${esc(it.purchase_date)}</td><td>${esc(shipName(it.shipment_id))}</td><td>${esc(supName(it.supplier_id))}</td><td>${esc(it.invoice_no)}</td>
+      ${rows.slice(0,LIM).map(it=>`<tr class="click ${SEL.has(it.id)?'sel':''}" data-id="${it.id}">
+        <td class="ck"><input type="checkbox" data-ck="${it.id}" ${SEL.has(it.id)?'checked':''}></td>
+        <td>${esc(it.purchase_date)}</td>${ORD?`<td>${esc(orderName(it.order_id))}</td>`:''}<td>${esc(shipName(it.shipment_id))}</td><td>${esc(supName(it.supplier_id))}</td><td>${esc(it.invoice_no)}</td>
         <td>${esc(it.flower)}</td><td>${esc(it.variety)}</td><td>${esc(it.grade)}</td>
         <td class="num">${fmt(it.qty,2)} <span class="muted">${esc(it.unit||'')}</span></td><td class="num">${fmt(it.price,2)}</td><td class="num">${fmt(amt(it),2)}</td>
         <td>${stars(effRating(it))}</td>
@@ -402,7 +491,45 @@ function renderItems(){
   $('#fC').onchange = e=>{f.claims=e.target.checked; renderItems();};
   $('#fU').onchange = e=>{f.unchecked=e.target.checked; renderItems();};
   $('#addItem').onclick = ()=>itemModal(null);
-  document.querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>itemModal(S.purchase_items.find(x=>x.id===tr.dataset.id)));
+  if ($('#fOrd')) $('#fOrd').onchange = e=>{f.order=e.target.value; renderItems();};
+  if ($('#cpSql')) $('#cpSql').onclick = ()=>{ navigator.clipboard?.writeText(ORDER_SQL).then(()=>toast('OK')); };
+  document.querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=e=>{ if (e.target.closest('td.ck')) return; itemModal(S.purchase_items.find(x=>x.id===tr.dataset.id)); });
+  document.querySelectorAll('td.ck').forEach(td=>td.onclick=e=>{ if (e.target.tagName!=='INPUT'){ const c=td.querySelector('input'); c.checked=!c.checked; c.onchange(); } });
+  document.querySelectorAll('[data-ck]').forEach(c=>c.onchange=()=>{ c.checked ? SEL.add(c.dataset.ck) : SEL.delete(c.dataset.ck); renderItems(); });
+  if ($('#ckAll')) $('#ckAll').onchange = e=>{ shownIds.forEach(id=> e.target.checked ? SEL.add(id) : SEL.delete(id)); renderItems(); };
+  if (!SEL.size) return;
+  $('#bClr').onclick = ()=>{ SEL.clear(); renderItems(); };
+  $('#bDel').onclick = bulkDelete;
+  $('#bShip').onclick = ()=>bulkPick('ship');
+  $('#bSup').onclick = ()=>bulkPick('sup');
+  if ($('#bOrd')) $('#bOrd').onclick = ()=>bulkPick('ord');
+}
+async function bulkDelete(){
+  const ids = [...SEL]; if (!confirm(`${t('confirmDelN')} ${ids.length}`)) return;
+  try{
+    for (const id of ids){ const it = S.purchase_items.find(x=>x.id===id); for (const p of (it?.photos||[])) await removePhoto(p).catch(()=>{}); }
+    await DB.removeMany('purchase_items', ids); SEL.clear(); toast(`${t('deletedN')} ${ids.length}`); renderItems();
+  }catch(e){ alert(e.message); }
+}
+function bulkPick(kind){
+  const ids = [...SEL];
+  const cfg = { ord:[t('pickOrder'), `<option value="">${t('unlink')}</option>${orderOptions('')}`, t('orderShipHint')],
+                ship:[t('pickShip'), `<option value="">${t('unlink')}</option>${shipOptions('')}`, ''],
+                sup:[t('pickSup'), `<option value=""></option>${supOptions('',true)}`, ''] }[kind];
+  const bg = modal(`<h2>${cfg[0]}</h2><p class="muted">${t('selected')}: ${ids.length}</p>
+    <select id="bp" style="width:100%">${cfg[1]}</select>${cfg[2]?`<p class="hint">${cfg[2]}</p>`:''}
+    <div class="mfoot"><span class="sp"></span><button class="btn" id="bpC">${t('cancel')}</button><button class="btn pri" id="bpOk">${t('apply')}</button></div>`);
+  const m = bg.querySelector('.modal');
+  m.querySelector('#bpC').onclick = () => bg.remove();
+  m.querySelector('#bpOk').onclick = async e => { const v = m.querySelector('#bp').value || null;
+    if (kind==='sup' && !v) return;
+    let patch;
+    if (kind==='ord'){ const o = S.orders.find(x=>x.id===v); patch = {order_id:v}; if (o?.shipment_id) patch.shipment_id = o.shipment_id; }
+    else if (kind==='ship') patch = {shipment_id:v};
+    else patch = {supplier_id:v};
+    e.target.disabled = true;
+    try{ await DB.updateMany('purchase_items', ids, patch); bg.remove(); toast(`${t('updatedN')} ${ids.length}`); SEL.clear(); renderItems(); }
+    catch(err){ alert(err.message); e.target.disabled = false; } };
 }
 function supOptions(sel, onlyActive){ return [...S.suppliers].filter(s=>!onlyActive||s.active!==false||s.id===sel).sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(s=>`<option value="${s.id}" ${s.id===sel?'selected':''}>${esc(s.name)}${s.name_zh?' / '+esc(s.name_zh):''}</option>`).join(''); }
 function shipOptions(sel){ return [...S.shipments].sort((a,b)=>(b.ship_date||'').localeCompare(a.ship_date||'')).map(s=>`<option value="${s.id}" ${s.id===sel?'selected':''}>${esc(s.number)}${s.ship_date?' · '+s.ship_date:''}</option>`).join(''); }
@@ -415,7 +542,7 @@ function lightbox(src){ const d=document.createElement('div'); d.className='ligh
 
 function itemModal(it){
   const isNew = !it;
-  const d = it ? JSON.parse(JSON.stringify(it)) : {id:uid(), purchase_date:LAST.purchase_date||today(), supplier_id:LAST.supplier_id||'', shipment_id:LAST.shipment_id||'', invoice_no:LAST.invoice_no||'', unit:'шт', photos:[], claim_reasons:[]};
+  const d = it ? JSON.parse(JSON.stringify(it)) : {id:uid(), purchase_date:LAST.purchase_date||today(), supplier_id:LAST.supplier_id||'', shipment_id:LAST.shipment_id||'', order_id:LAST.order_id||'', invoice_no:LAST.invoice_no||'', unit:'шт', photos:[], claim_reasons:[]};
   d.photos = d.photos||[]; d.claim_reasons = d.claim_reasons||[];
   const qb = (k) => `<div class="qbtns" data-q="${k}">${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" class="${+d[k]===n?'on'+n:''}">${n}</button>`).join('')}</div>`;
   const bg = modal(`
@@ -424,6 +551,7 @@ function itemModal(it){
       <label>${t('date')} *<input type="date" id="m_date" value="${esc(d.purchase_date)}"></label>
       <label>${t('supplier')} *<select id="m_sup"><option value=""></option>${supOptions(d.supplier_id,true)}<option value="__new">${t('newSupplier')}</option></select></label>
       <label>${t('invoice')}<input id="m_inv" value="${esc(d.invoice_no)}"></label>
+      ${useOrders()?`<label>${t('order')}<select id="m_ord"><option value="">${t('none')}</option>${orderOptions(d.order_id)}</select></label>`:''}
       <label>${t('shipment')}<select id="m_ship"><option value="">${t('none')}</option>${shipOptions(d.shipment_id)}</select></label>
       <label>${t('flower')} *<input id="m_fl" list="flList" value="${esc(d.flower)}"></label>
       <label>${t('variety')}<input id="m_var" list="varList" value="${esc(d.variety)}"></label>
@@ -462,6 +590,7 @@ function itemModal(it){
   m.querySelectorAll('.qbtns').forEach(g=>g.onclick=e=>{ const b=e.target.closest('button'); if(!b) return; const k=g.dataset.q, n=+b.dataset.n;
     d[k] = +d[k]===n ? null : n; g.querySelectorAll('button').forEach(x=>x.className = +d[k]===+x.dataset.n ? 'on'+x.dataset.n : ''); updAuto(); });
   updAuto();
+  if (m.querySelector('#m_ord')) m.querySelector('#m_ord').onchange = e => { const o = S.orders.find(x=>x.id===e.target.value); if (o?.shipment_id) m.querySelector('#m_ship').value = o.shipment_id; };
   m.querySelector('#m_claim').onchange = e => { d.has_claim = e.target.checked; m.querySelector('#m_claimBox').style.display = d.has_claim?'':'none'; };
   m.querySelector('#m_reasons').onclick = e => { const c = e.target.closest('.chip'); if(!c) return; const k=c.dataset.k;
     d.claim_reasons = d.claim_reasons.includes(k) ? d.claim_reasons.filter(x=>x!==k) : [...d.claim_reasons,k]; c.classList.toggle('on'); };
@@ -483,6 +612,7 @@ function itemModal(it){
       rating:d.rating??null, has_claim:!!d.has_claim, claim_reasons:d.has_claim?d.claim_reasons:[], claim_qty:d.has_claim?num(v('#m_cq')):null,
       claim_amount:d.has_claim?num(v('#m_ca')):null, claim_status:d.has_claim?v('#m_cs'):null, claim_note:d.has_claim?(v('#m_cn')||null):null, photos:d.photos };
     PARAMS.forEach(p=>row[p]=d[p]??null);
+    if (m.querySelector('#m_ord')) row.order_id = v('#m_ord') || null;
     if (row.amount==null && row.qty!=null && row.price!=null) row.amount = Math.round(row.qty*row.price*100)/100;
     if (row.price==null && row.amount!=null && row.qty) row.price = Math.round(row.amount/row.qty*10000)/10000;
     if (!row.purchase_date || !row.supplier_id || row.supplier_id==='__new' || !row.flower || row.qty==null){ alert(t('required')); return null; }
@@ -491,7 +621,7 @@ function itemModal(it){
   const save = async (more) => { const row = collect(); if (!row) return;
     try{
       if (isNew) await DB.insert('purchase_items', [{id:d.id, ...row}]); else await DB.update('purchase_items', d.id, row);
-      LAST = {purchase_date:row.purchase_date, supplier_id:row.supplier_id, shipment_id:row.shipment_id, invoice_no:row.invoice_no};
+      LAST = {purchase_date:row.purchase_date, supplier_id:row.supplier_id, shipment_id:row.shipment_id, order_id:row.order_id||'', invoice_no:row.invoice_no};
       bg.remove(); toast(t('saved')); shell(); if (more) itemModal(null);
     }catch(err){ alert(err.message); } };
   m.querySelector('#m_save').onclick = () => save(false);
@@ -522,7 +652,7 @@ function renderImport(){
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Закупка'); XLSX.writeFile(wb, 'shablon_zakupka.xlsx'); };
   $('#impFile').onchange = async e => { const f = e.target.files[0]; if (!f) return;
     const wb = XLSX.read(await f.arrayBuffer(), {type:'array', cellDates:true});
-    IMP = {wb, sheet: wb.SheetNames[0], map:{}, def:{date:today(), supplier:'', invoice:'', shipment:'', newShip:''}};
+    IMP = {wb, sheet: wb.SheetNames[0], map:{}, def:{date:today(), supplier:'', invoice:'', shipment:'', order:'', newShip:''}, supMap:{}};
     loadSheet(); drawImport(); };
   if (IMP) drawImport();
 }
@@ -556,17 +686,18 @@ function parsedRows(){
       invoice_no: String(g(r,'invoice_no')||IMP.def.invoice||'').trim() || null,
       flower: String(g(r,'flower')).trim(), variety: String(g(r,'variety')).trim()||null, grade: String(g(r,'grade')).trim()||null,
       qty: num(g(r,'qty')), unit: String(g(r,'unit')).trim()||'шт', price: num(g(r,'price')), amount: num(g(r,'amount')) };
-    if (row.supplierName){ const s = findSupplier(row.supplierName); row.supplier_id = s?.id || null; }
+    if (row.supplierName){ const s = findSupplier(row.supplierName); row.supplier_id = s?.id || IMP.supMap[row.supplierName]?.id || null; }
     if (row.amount==null && row.qty!=null && row.price!=null) row.amount = Math.round(row.qty*row.price*100)/100;
     if (row.price==null && row.amount!=null && row.qty) row.price = Math.round(row.amount/row.qty*10000)/10000;
     const low = row.flower.toLowerCase();
-    row.skip = !row.flower || row.qty==null || /итог|всего|total|合计|总计/.test(low);
+    row.skip = !row.flower || row.qty==null || /^\s*(итог|всего|total|合计|总计)/.test(low);
     row.ok = !row.skip && (row.supplier_id || row.supplierName);
     out.push(row); }
   return out;
 }
 function drawImport(){
   const hdr = IMP.aoa[IMP.hr]||[]; const rows = parsedRows(); const ok = rows.filter(r=>r.ok); const bad = rows.length-ok.length;
+  const unk = [...new Set(rows.filter(r=>r.ok && r.supplierName && !findSupplier(r.supplierName)).map(r=>r.supplierName))];
   const newSups = [...new Set(ok.filter(r=>!r.supplier_id && r.supplierName).map(r=>r.supplierName))];
   const colOpt = sel => `<option value="">${t('notUsed')}</option>` + hdr.map((h,i)=>`<option value="${i}" ${+sel===i && sel!=null?'selected':''}>${String.fromCharCode(65+(i%26))}${i>=26?Math.floor(i/26):''}: ${esc(String(h).slice(0,30))}</option>`).join('');
   $('#impBody').innerHTML = `<div class="card">
@@ -581,9 +712,17 @@ function drawImport(){
       <label>${t('date')}<input type="date" id="dDate" value="${IMP.def.date}"></label>
       <label>${t('supplier')}<select id="dSup" ${IMP.map.supplier!=null?'disabled':''}><option value=""></option>${supOptions(IMP.def.supplier,true)}</select></label>
       <label>${t('invoice')}<input id="dInv" value="${esc(IMP.def.invoice)}"></label>
+      ${useOrders()?`<label>${t('order')}<select id="dOrd"><option value="">${t('none')}</option>${orderOptions(IMP.def.order)}</select></label>`:''}
       <label>${t('shipment')}<select id="dShip"><option value="">${t('none')}</option>${shipOptions(IMP.def.shipment)}</select></label>
       ${LOCAL?`<label>${t('newShipNum')}<input id="dNewShip" value="${esc(IMP.def.newShip)}" ${IMP.def.shipment?'disabled':''}></label>`:''}
     </div>
+    ${unk.length?`<h3>${t('supMapTitle')} (${unk.length})</h3><p class="hint" style="margin-top:0">${t('supMapHint')}</p>
+    <div class="tw" style="max-height:360px"><table class="supmap"><thead><tr><th>${t('fromFile')}</th><th>${t('supplier')}</th><th>${t('ruName')}</th><th class="num">${t('positions')}</th></tr></thead><tbody>
+    ${unk.map((n,k)=>{ const mp = IMP.supMap[n] || {}; return `<tr><td><b>${esc(n)}</b></td>
+      <td><select data-sm="${k}"><option value="">${t('createNew')}</option>${supOptions(mp.id||'',false)}</select></td>
+      <td><input data-sr="${k}" value="${esc(mp.ru||'')}" placeholder="${esc(n)}" ${mp.id?'disabled':''}></td>
+      <td class="num">${rows.filter(r=>r.ok&&r.supplierName===n).length}</td></tr>`; }).join('')}
+    </tbody></table></div>`:''}
     <p style="margin-top:14px"><b>${ok.length}</b> ${t('rowsOk')} · <span class="muted">${bad} ${t('rowsBad')}</span>${newSups.length?` · <span class="badge b-warn">${newSups.length} ${t('newSups')}: ${esc(newSups.slice(0,5).join(', '))}${newSups.length>5?'…':''}</span>`:''}</p>
     <div class="row" style="margin:10px 0"><button class="btn pri" id="doImp" ${ok.length?'':'disabled'}>${t('doImport')} (${ok.length})</button></div>
     <h3>${t('preview')}</h3>
@@ -597,18 +736,23 @@ function drawImport(){
   $('#dSup').onchange = e => { IMP.def.supplier = e.target.value; drawImport(); };
   $('#dInv').onchange = e => { IMP.def.invoice = e.target.value; drawImport(); };
   $('#dShip').onchange = e => { IMP.def.shipment = e.target.value; drawImport(); };
+  if ($('#dOrd')) $('#dOrd').onchange = e => { IMP.def.order = e.target.value; const o = S.orders.find(x=>x.id===e.target.value); if (o?.shipment_id) IMP.def.shipment = o.shipment_id; drawImport(); };
+  document.querySelectorAll('[data-sm]').forEach(sl=>sl.onchange=()=>{ const n = unk[+sl.dataset.sm]; IMP.supMap[n] = {...(IMP.supMap[n]||{}), id:sl.value||''}; drawImport(); });
+  document.querySelectorAll('[data-sr]').forEach(inp=>inp.onchange=()=>{ const n = unk[+inp.dataset.sr]; IMP.supMap[n] = {...(IMP.supMap[n]||{}), ru:inp.value.trim()}; });
   if ($('#dNewShip')) $('#dNewShip').onchange = e => { IMP.def.newShip = e.target.value; };
   $('#doImp').onclick = async (e) => { e.target.disabled = true;
     try{
       const rows = parsedRows().filter(r=>r.ok);
       const names = [...new Set(rows.filter(r=>!r.supplier_id).map(r=>r.supplierName))];
-      if (names.length) await DB.insert('suppliers', names.map(n=>(/[\u4e00-\u9fff]/.test(n) && !/[а-яё]/i.test(n) ? {name:n, name_zh:n, type:'farm', active:true} : {name:n, type:'farm', active:true})));
+      if (names.length) (await DB.insert('suppliers', names.map(n=>{ const ru = (IMP.supMap[n]?.ru||'').trim(); const zh = /[\u4e00-\u9fff]/.test(n) && !/[а-яё]/i.test(n);
+        return zh ? {name:ru||n, name_zh:n, type:'farm', active:true} : {name:ru||n, type:'farm', active:true}; }))).forEach((c,i)=>{ IMP.supMap[names[i]] = {id:c.id}; });
       let shipId = IMP.def.shipment || null;
       if (!shipId && IMP.def.newShip.trim()){ const [s] = await DB.insert('shipments', [{number:IMP.def.newShip.trim(), ship_date:IMP.def.date}]); shipId = s.id; }
-      const items = rows.map(r=>({ purchase_date:r.purchase_date, supplier_id:r.supplier_id || findSupplier(r.supplierName).id, invoice_no:r.invoice_no, shipment_id:shipId,
+      const ordId = useOrders() && IMP.def.order ? IMP.def.order : null;
+      const items = rows.map(r=>({ purchase_date:r.purchase_date, supplier_id:r.supplier_id || IMP.supMap[r.supplierName]?.id || findSupplier(r.supplierName).id, invoice_no:r.invoice_no, shipment_id:shipId, ...(ordId?{order_id:ordId}:{}),
         flower:r.flower, variety:r.variety, grade:r.grade, qty:r.qty, unit:r.unit, price:r.price, amount:r.amount, has_claim:false, claim_reasons:[], photos:[] }));
       await DB.insert('purchase_items', items);
-      toast(`${t('imported')} ${items.length}`); IMP = null; IF.shipment = shipId || ''; TAB = 'items'; shell();
+      toast(`${t('imported')} ${items.length}`); IMP = null; IF.shipment = shipId || ''; IF.order = ordId || ''; TAB = 'items'; shell();
     }catch(err){ alert(err.message); e.target.disabled = false; } };
 }
 
@@ -644,17 +788,48 @@ function shipModal(s){
 }
 
 /* ================= ПОСТАВЩИКИ ================= */
+let SUPZH = false;
 function renderSuppliers(){
-  const list = [...S.suppliers].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  $('#main').innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${t('sup')}</h2><button class="btn pri" id="addSup">${t('newSupplier')}</button></div></div>
+  const zhN = S.suppliers.filter(isZhOnly).length;
+  const list = [...S.suppliers].filter(s=>!SUPZH || isZhOnly(s)).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  $('#main').innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${t('sup')}</h2>
+    <label style="flex-direction:row;align-items:center;gap:6px;color:var(--ink)"><input type="checkbox" id="supZh" ${SUPZH?'checked':''}>${t('onlyZh')} (${zhN})</label>
+    <button class="btn pri" id="addSup">${t('newSupplier')}</button></div></div>
     <div class="tw">${list.length?`<table><thead><tr><th>${t('name')}</th><th>${t('nameZh')}</th><th>${t('type')}</th><th>${t('contact')}</th><th class="num">${t('positions')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th><th>${t('index')}</th><th>${t('verdict')}</th><th></th></tr></thead><tbody>
     ${list.map(s=>{ const a = agg(S.purchase_items.filter(i=>i.supplier_id===s.id));
-      return `<tr style="${s.active===false?'opacity:.5':''}"><td><b>${esc(s.name)}</b></td><td>${esc(s.name_zh)}</td><td>${s.type==='reseller'?t('reseller'):t('farm')}</td><td>${esc(s.contact)}</td><td class="num">${a.n}</td><td>${stars(a.avgRating)}</td><td class="num">${defectCell(a.defectPct)}</td><td>${indexCell(a.index)}</td><td>${verdictBadge(a.verdict)}</td>
-      <td><button class="btn sm" data-det="${s.id}">${t('detail')}</button> <button class="btn sm" data-edit="${s.id}">${t('edit')}</button></td></tr>`; }).join('')}
+      return `<tr style="${s.active===false?'opacity:.5':''}"><td><b>${esc(s.name)}</b>${isZhOnly(s)?` <span class="badge b-warn">${t('noRu')}</span>`:''}</td><td>${esc(s.name_zh)}</td><td>${s.type==='reseller'?t('reseller'):t('farm')}</td><td>${esc(s.contact)}</td><td class="num">${a.n}</td><td>${stars(a.avgRating)}</td><td class="num">${defectCell(a.defectPct)}</td><td>${indexCell(a.index)}</td><td>${verdictBadge(a.verdict)}</td>
+      <td><button class="btn sm" data-det="${s.id}">${t('detail')}</button> <button class="btn sm" data-edit="${s.id}">${t('edit')}</button> <button class="btn sm" data-merge="${s.id}">${t('merge')}</button> ${a.n?'':`<button class="btn sm danger" data-sdel="${s.id}">${t('del')}</button>`}</td></tr>`; }).join('')}
     </tbody></table>`:`<div class="empty">${t('noData')}</div>`}</div>`;
+  $('#supZh').onchange = e => { SUPZH = e.target.checked; renderSuppliers(); };
+  document.querySelectorAll('[data-merge]').forEach(b=>b.onclick=()=>mergeModal(S.suppliers.find(s=>s.id===b.dataset.merge)));
+  document.querySelectorAll('[data-sdel]').forEach(b=>b.onclick=async()=>{ const s = S.suppliers.find(x=>x.id===b.dataset.sdel);
+    if (!confirm(`${t('delSupConfirm')}\n${s.name}${s.name_zh&&s.name_zh!==s.name?' / '+s.name_zh:''}`)) return;
+    try{ if (await safeDeleteSupplier(s)) toast(t('deleted')); }catch(e){ alert(e.message); } renderSuppliers(); });
   $('#addSup').onclick = async () => { await supplierModal(null); renderSuppliers(); };
   document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=async()=>{ await supplierModal(S.suppliers.find(s=>s.id===b.dataset.edit)); renderSuppliers(); });
   document.querySelectorAll('[data-det]').forEach(b=>b.onclick=()=>{ SUMV.mode='S'; SUMV.detail=b.dataset.det; PER.sum={preset:'allTime',from:'',to:''}; TAB='sum'; shell(); });
+}
+function mergeModal(src){
+  const n = S.purchase_items.filter(i=>i.supplier_id===src.id).length;
+  const others = `<option value=""></option>` + [...S.suppliers].filter(s=>s.id!==src.id).sort((a,b)=>(a.name||'').localeCompare(b.name||''))
+    .map(s=>`<option value="${s.id}">${esc(s.name)}${s.name_zh&&s.name_zh!==s.name?' / '+esc(s.name_zh):''}${s.active===false?' (×)':''}</option>`).join('');
+  const bg = modal(`<h2>${t('mergeTitle')}</h2>
+    <p><b>${esc(src.name)}</b>${src.name_zh&&src.name_zh!==src.name?' / '+esc(src.name_zh):''} · <span class="muted">${t('positions')}: ${n}</span></p>
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)">${t('mergeInto')}<select id="mg">${others}</select></label>
+    <p class="hint">${t('mergeHint')}</p>
+    <div class="mfoot"><span class="sp"></span><button class="btn" id="mgC">${t('cancel')}</button><button class="btn pri" id="mgOk">${t('merge')}</button></div>`);
+  const m = bg.querySelector('.modal');
+  m.querySelector('#mgC').onclick = () => bg.remove();
+  m.querySelector('#mgOk').onclick = async e => { const to = m.querySelector('#mg').value; if (!to) return;
+    const dst = S.suppliers.find(s=>s.id===to); e.target.disabled = true;
+    try{
+      const ids = S.purchase_items.filter(i=>i.supplier_id===src.id).map(i=>i.id);
+      await DB.updateMany('purchase_items', ids, {supplier_id:to});
+      // перенести китайское название, если у целевого его нет
+      if (!dst.name_zh && src.name_zh) await DB.update('suppliers', dst.id, {name_zh:src.name_zh}).catch(()=>{});
+      await safeDeleteSupplier(src);
+      bg.remove(); toast(`${t('merged')} ${ids.length}`); renderSuppliers();
+    }catch(err){ alert(err.message); e.target.disabled = false; } };
 }
 function supplierModal(s){
   return new Promise(resolve => {
@@ -665,11 +840,11 @@ function supplierModal(s){
       <label>${t('contact')}<input id="p_contact" value="${esc(s?.contact)}"></label></div>
       <label style="display:block;margin-top:10px;font-size:12px;color:var(--muted)">${t('notes')}<textarea id="p_notes">${esc(s?.notes)}</textarea></label>
       <label style="display:flex;gap:6px;align-items:center;margin-top:10px"><input type="checkbox" id="p_act" ${s?.active===false?'':'checked'}> ${t('active')}</label>
-      <div class="mfoot">${s&&LOCAL?`<button class="btn danger" id="p_del">${t('del')}</button>`:''}<span class="sp"></span><button class="btn" id="p_c">${t('cancel')}</button><button class="btn pri" id="p_save">${t('save')}</button></div>`);
+      <div class="mfoot">${s?`<button class="btn danger" id="p_del">${t('del')}</button>`:''}<span class="sp"></span><button class="btn" id="p_c">${t('cancel')}</button><button class="btn pri" id="p_save">${t('save')}</button></div>`);
     const m = bg.querySelector('.modal'); const done = v => { bg.remove(); resolve(v); };
     m.querySelector('#p_c').onclick = () => done(null);
-    if (s && LOCAL) m.querySelector('#p_del').onclick = async () => { if (S.purchase_items.some(i=>i.supplier_id===s.id)) return alert(t('cantDelSup'));
-      if(!confirm(t('confirmDel'))) return; await DB.remove('suppliers', s.id); done(null); };
+    if (s) m.querySelector('#p_del').onclick = async () => { if (S.purchase_items.some(i=>i.supplier_id===s.id)) return alert(t('cantDelSup') + (LANG==='zh'?'':' Или используйте «Объединить».'));
+      if(!confirm(t('delSupConfirm'))) return; try{ await safeDeleteSupplier(s); }catch(e){ alert(e.message); } done(null); };
     m.querySelector('#p_save').onclick = async () => {
       const row = {name:m.querySelector('#p_name').value.trim(), name_zh:m.querySelector('#p_zh').value.trim()||null, type:m.querySelector('#p_type').value, contact:m.querySelector('#p_contact').value.trim()||null, notes:m.querySelector('#p_notes').value.trim()||null, active:m.querySelector('#p_act').checked};
       if (!row.name) return alert(t('name'));
@@ -684,7 +859,7 @@ function renderSummary(){
   CHARTS.forEach(c=>c.destroy()); CHARTS = [];
   if (PER.sum.preset!=='custom' && !PER.sum.from && PER.sum.preset!=='allTime') [PER.sum.from, PER.sum.to] = presetRange(PER.sum.preset);
   const items = S.purchase_items.filter(it=>inPer(it,'sum')); const A = agg(items);
-  const modes = [['S','byS'],['Sh','bySh'],['M','byM'],['F','byF']];
+  const modes = [['S','byS'],...(useOrders()?[['O','byO']]:[]),['Sh','bySh'],['M','byM'],['F','byF']]; if (!modes.some(m=>m[0]===SUMV.mode)) SUMV.mode='S';
   $('#main').innerHTML = `<div class="card"><div class="row">${periodUI('sum')}
     <div class="seg" style="margin-left:auto">${modes.map(([k,l])=>`<button data-mode="${k}" class="${SUMV.mode===k?'on':''}">${t(l)}</button>`).join('')}</div>
     <button class="btn" id="sumX">${t('exportX')}</button></div></div>
@@ -701,11 +876,12 @@ function renderSummary(){
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ SUMV.mode=b.dataset.mode; SUMV.detail=null; renderSummary(); });
   if (!items.length){ $('#sumBody').innerHTML = `<div class="card empty">${t('noData')}</div>`; $('#sumX').disabled = true; return; }
   if (SUMV.mode==='S' && SUMV.detail) return supplierDetail(items.filter(i=>i.supplier_id===SUMV.detail));
-  const T = ({S:tblSuppliers, Sh:tblShipments, M:tblMonths, F:tblFlowers})[SUMV.mode](items);
+  const T = ({S:tblSuppliers, O:tblOrders, Sh:tblShipments, M:tblMonths, F:tblFlowers})[SUMV.mode](items);
   $('#sumBody').innerHTML = (SUMV.mode==='S'?`<p class="hint" style="margin:0 0 8px">${t('formula')}</p>`:'') + (SUMV.mode==='M'?`<div class="card"><canvas id="chM" height="90"></canvas></div>`:'') + `<div class="tw">${T.html}</div>`;
   $('#sumX').onclick = () => { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(T.xls), t(modes.find(m=>m[0]===SUMV.mode)[1]).slice(0,30)); XLSX.writeFile(wb, `svodka_${SUMV.mode}_${PER.sum.from||'all'}_${PER.sum.to||''}.xlsx`); };
   document.querySelectorAll('tr[data-sup]').forEach(tr=>tr.onclick=()=>{ SUMV.detail=tr.dataset.sup; renderSummary(); });
   if (SUMV.mode==='M') monthChart($('#chM'), T.months);
+  document.querySelectorAll('[data-oopen]').forEach(b=>b.onclick=()=>{ IF.order=b.dataset.oopen; IF.shipment=''; PER.items={preset:'allTime',from:'',to:''}; TAB='items'; shell(); });
 }
 function groupBy(items, keyFn){ const m = new Map(); for (const it of items){ const k = keyFn(it); if(!m.has(k)) m.set(k,[]); m.get(k).push(it); } return m; }
 const r1 = v => v==null?null:Math.round(v*10)/10;
@@ -727,6 +903,15 @@ function tblShipments(items){
   return { html:`<table><thead><tr><th>${t('shipment')}</th><th>${t('date')}</th><th class="num">${t('suppliersN')}</th><th class="num">${t('positions')}</th><th class="num">${t('qty')}</th><th class="num">${t('amount')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th><th class="num">${t('claimsN')}</th><th class="num">${t('claimSum')}</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td><b>${esc(nm(r))}</b></td><td>${esc(r.s?.ship_date)}</td><td class="num">${r.sup}</td><td class="num">${r.a.n}</td><td class="num">${fmt(r.a.qty,0)}</td><td class="num">${money(r.a.amount)}</td><td>${stars(r.a.avgRating)}</td><td class="num">${defectCell(r.a.defectPct)}</td><td class="num">${r.a.claimItems}</td><td class="num">${r.a.claimAmt?money(r.a.claimAmt):'—'}</td></tr>`).join('')}</tbody></table>`,
     xls: rows.map(r=>({[t('shipment')]:nm(r), [t('date')]:r.s?.ship_date||'', [t('suppliersN')]:r.sup, [t('positions')]:r.a.n, [t('qty')]:r.a.qty, [t('amount')]:r1(r.a.amount), [t('avgRating')]:r1(r.a.avgRating), [t('defect')+' %']:r1(r.a.defectPct), [t('claimsN')]:r.a.claimItems, [t('claimSum')]:r1(r.a.claimAmt)})) };
+}
+function tblOrders(items){
+  const rows = [...groupBy(items, i=>i.order_id||'')].map(([id,its])=>({id, a:agg(its), o:S.orders.find(x=>x.id===id), sup:new Set(its.map(i=>i.supplier_id)).size}));
+  rows.sort((x,y)=>(y.o?.date||'').localeCompare(x.o?.date||''));
+  const nm = r => r.id ? orderName(r.id) : t('noOrder');
+  return { html:`<table><thead><tr><th>${t('order')}</th><th>${t('date')}</th><th>${t('shipment')}</th><th class="num">${t('suppliersN')}</th><th class="num">${t('positions')}</th><th class="num">${t('qty')}</th><th class="num">${t('amount')}</th><th>${t('avgRating')}</th><th class="num">${t('defect')}</th><th class="num">${t('claimsN')}</th><th class="num">${t('claimSum')}</th><th></th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td><b>${esc(nm(r))}</b></td><td>${esc(r.o?.date)}</td><td>${esc(shipName(r.o?.shipment_id))}</td><td class="num">${r.sup}</td><td class="num">${r.a.n}</td><td class="num">${fmt(r.a.qty,0)}</td><td class="num">${money(r.a.amount)}</td><td>${stars(r.a.avgRating)}</td><td class="num">${defectCell(r.a.defectPct)}</td><td class="num">${r.a.claimItems}</td><td class="num">${r.a.claimAmt?money(r.a.claimAmt):'—'}</td>
+      <td><button class="btn sm" data-oopen="${r.id||'__none'}">${t('open')}</button></td></tr>`).join('')}</tbody></table>`,
+    xls: rows.map(r=>({[t('order')]:nm(r), [t('date')]:r.o?.date||'', [t('shipment')]:shipName(r.o?.shipment_id), [t('suppliersN')]:r.sup, [t('positions')]:r.a.n, [t('qty')]:r.a.qty, [t('amount')]:r1(r.a.amount), [t('avgRating')]:r1(r.a.avgRating), [t('defect')+' %']:r1(r.a.defectPct), [t('claimsN')]:r.a.claimItems, [t('claimSum')]:r1(r.a.claimAmt)})) };
 }
 function tblMonths(items){
   const rows = [...groupBy(items, i=>monthKey(i.purchase_date))].map(([m,its])=>({m, a:agg(its), sup:new Set(its.map(i=>i.supplier_id)).size})).sort((x,y)=>x.m.localeCompare(y.m));
